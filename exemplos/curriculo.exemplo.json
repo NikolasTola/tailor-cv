@@ -1,0 +1,92 @@
+{
+  "cabecalho": {
+    "nome": "Maria Exemplo da Silva",
+    "headline": "Engenheira de IA",
+    "cidade": "Belo Horizonte – MG",
+    "telefone": "(31) 90000-0000",
+    "email": "maria.exemplo@email.com",
+    "linkedin": "linkedin.com/in/maria-exemplo",
+    "github": "github.com/maria-exemplo"
+  },
+  "resumo": "Profissional com experiência em engenharia de dados e aplicações de IA generativa em nuvem AWS. Possui vivência na construção de sistemas RAG em produção, orquestração de agentes com LangGraph e governança de custos de LLMs. Atuação próxima a times de negócio na tradução de requisitos em soluções técnicas.",
+  "experiencias": [
+    {
+      "empresa": "Empresa Alfa",
+      "cargo": "Engenheira de IA",
+      "modalidade": "Híbrido",
+      "inicio": "2023-03",
+      "fim": null,
+      "bullets": [
+        {
+          "origem": "alfa-rag",
+          "texto": "Desenvolvimento e deploy de chatbot RAG em produção com AWS Bedrock, OpenSearch e ECS Fargate, utilizado por 2.000 colaboradores."
+        },
+        {
+          "origem": "alfa-costs",
+          "texto": "Implantação de monitoramento e governança de custos de LLMs, com redução de 30% no gasto mensal com Bedrock."
+        },
+        {
+          "origem": "alfa-iac",
+          "texto": "Automação da infraestrutura com AWS CDK e pipelines de CI/CD, com redução do tempo de deploy de 2 h para 15 min."
+        }
+      ]
+    },
+    {
+      "empresa": "Empresa Beta",
+      "cargo": "Analista de Dados",
+      "modalidade": "Remoto",
+      "inicio": "2020-01",
+      "fim": "2023-02",
+      "bullets": [
+        {
+          "origem": "beta-etl",
+          "texto": "Construção de pipelines de dados em Python e SQL para consolidação de indicadores operacionais."
+        },
+        {
+          "origem": "beta-dash",
+          "texto": "Criação de dashboards para acompanhamento de metas, adotados por 4 áreas de negócio."
+        }
+      ]
+    }
+  ],
+  "formacao": [
+    {
+      "curso": "Bacharelado em Estatística",
+      "instituicao": "Universidade Exemplo",
+      "conclusao": "2019"
+    }
+  ],
+  "cursos": [
+    {
+      "nome": "AWS Certified Machine Learning – Specialty",
+      "instituicao": "Amazon Web Services",
+      "ano": "2024"
+    },
+    {
+      "nome": "LangGraph: agentes com estado",
+      "instituicao": "Plataforma Exemplo",
+      "ano": "2025"
+    }
+  ],
+  "habilidades": [
+    "Python",
+    "AWS Bedrock",
+    "LangGraph",
+    "RAG",
+    "OpenSearch",
+    "AWS CDK",
+    "SQL",
+    "Comunicação",
+    "Organização"
+  ],
+  "idiomas": [
+    {
+      "idioma": "Português",
+      "nivel": "Nativo"
+    },
+    {
+      "idioma": "Inglês",
+      "nivel": "Avançado"
+    }
+  ]
+}
