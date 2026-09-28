@@ -1,0 +1,15 @@
+.env
+vagas/*
+!vagas/.gitkeep
+curriculos/*
+!curriculos/.gitkeep
+execucoes/*
+!execucoes/.gitkeep
+vagas/*
+!vagas/.gitkeep
+tests/*
+!tests/.gitkeep
+
+.ruff_cache/
+
+.venv/
