@@ -37,10 +37,9 @@ def _itens(cv: Curriculo, base: BaseDados) -> dict[str, dict]:
             itens[f"exp:{x.origem}:bullet:{i}"] = {
                 "agente": "experiencia",
                 "texto_pt": b.texto,
+                # a origem inclui as tags: as tecnologias usadas podem ser citadas
                 "origem": [
-                    {"text": a.text, "metric": a.metric}
-                    if a.metric
-                    else {"text": a.text}
+                    a.model_dump(include={"text", "tech", "metric"}, exclude_none=True)
                     for a in fontes
                 ],
             }

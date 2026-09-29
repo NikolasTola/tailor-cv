@@ -36,6 +36,7 @@ def test_itens_enviados_tem_texto_e_origem_em_ingles():
         and '"origem": "AI Engineer"' in humano
     )
     assert "30% reduction in monthly Bedrock spend" in humano  # a métrica vai junto
+    assert '"ECS Fargate"' in humano  # as tags de tecnologia também
     assert '"id": "formacao:estatistica"' in humano
     assert '"id": "habilidade:Communication"' in humano
     assert (

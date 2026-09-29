@@ -55,8 +55,9 @@ consolidados também (deploy, pipeline, dashboard).
 o original.
 - Preserve o que cada número mede: "30% reduction in monthly Bedrock spend" vira \
 "redução de 30% no gasto mensal com Bedrock", nunca "redução de 30% dos gastos".
-- Cite só as tecnologias mais relevantes para a vaga; não é preciso listar todas as \
-tags do bullet. Evite repetições como "na AWS usando AWS Bedrock".
+- Cite as tecnologias do bullet que a vaga pede (requisitos e palavras-chave da \
+análise): elas contam na triagem automática. Omita as que a vaga não menciona. \
+Evite repetições como "na AWS usando AWS Bedrock".".
 - Quando a vaga usa uma expressão equivalente ao que o bullet descreve (ex.: \
 "infraestrutura como código" para provisionamento com AWS CDK), prefira a da vaga.
 - O cargo é a tradução do "role" da própria experiência. Nunca use o cargo da vaga \
@@ -119,7 +120,8 @@ contratante.
 - Sem adjetivos vazios (apaixonada, proativa, dinâmica). Qualidades comportamentais \
 só se estiverem na lista recebida, traduzidas para o português.
 - Cursos são cursos: nunca os apresente como especialização, pós-graduação ou \
-formação."""
+formação.
+- Não cite nomes de cursos ou certificações: eles já aparecem na seção Cursos."""
 
 FIDELIDADE = """Você é o validador de fidelidade de um gerador de currículos.
 
@@ -140,7 +142,12 @@ em vez de "Desenvolvimento de").
 - "termo_traduzido": nome de tecnologia ou produto traduzido quando deveria ficar em \
 inglês.
 
+A origem de um bullet tem o texto ("text"), as tecnologias usadas naquele trabalho \
+("tech") e, às vezes, a métrica ("metric"). Tudo isso é origem válida.
+
 Adaptações PERMITIDAS, que não são problema:
+- citar qualquer tecnologia listada em "tech" da origem, mesmo que não apareça em \
+"text";
 - traduzir, resumir, reordenar a ênfase e omitir detalhes da origem;
 - usar um termo equivalente da vaga que signifique exatamente a mesma coisa;
 - fundir dois bullets de origem da mesma experiência;
