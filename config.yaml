@@ -3,12 +3,12 @@
 # Modelo de cada agente, no formato "provedor:modelo".
 # Confira os nomes atuais no Google AI Studio e no console do Groq.
 modelos:
-  analisador:  google_genai:gemini-2.5-flash
-  experiencia: google_genai:gemini-2.5-flash
-  resumo:      google_genai:gemini-2.5-flash
-  formacao:    google_genai:gemini-2.5-flash-lite
-  cursos:      google_genai:gemini-2.5-flash-lite
-  habilidades: google_genai:gemini-2.5-flash-lite
+  analisador:  google_genai:gemini-3.8-flash
+  experiencia: google_genai:gemini-3.8-flash
+  resumo:      google_genai:gemini-3.8-flash
+  formacao:    google_genai:gemini-3.5-flash-lite
+  cursos:      google_genai:gemini-3.5-flash-lite
+  habilidades: google_genai:gemini-3.5-flash-lite
   validador:   groq:openai/gpt-oss-120b
 
 limites:

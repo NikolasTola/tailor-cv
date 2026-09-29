@@ -20,6 +20,7 @@ class ModeloEstruturado(Protocol):
     def with_structured_output(self, schema: Any, **kwargs: Any) -> Any: ...
 
 
-def criar_llm(modelo: str, temperatura: float = 0.2) -> BaseChatModel:
-    # temperatura baixa: queremos consistência, não criatividade
-    return init_chat_model(modelo, temperature=temperatura)
+def criar_llm(modelo: str) -> BaseChatModel:
+    # Sem temperatura: os modelos Gemini 3.x não aceitam mais esse parâmetro,
+    # e cada provedor já tem um padrão adequado.
+    return init_chat_model(modelo)
