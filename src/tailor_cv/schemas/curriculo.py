@@ -22,7 +22,9 @@ class Cabecalho(Base):
 
 
 class Bullet(Base):
-    origem: Texto = Field(description="ID do bullet no arquivo de experiência de origem")
+    origem: Texto = Field(
+        description="ID do bullet no arquivo de experiência de origem"
+    )
     texto: Texto
 
 

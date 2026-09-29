@@ -18,7 +18,20 @@ from reportlab.platypus import (
 
 from tailor_cv.schemas import Curriculo
 
-MESES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"]
+MESES = [
+    "Jan",
+    "Fev",
+    "Mar",
+    "Abr",
+    "Mai",
+    "Jun",
+    "Jul",
+    "Ago",
+    "Set",
+    "Out",
+    "Nov",
+    "Dez",
+]
 
 
 def data_pt(ano_mes: str | None) -> str:
@@ -52,14 +65,23 @@ def _secao(titulo: str) -> Flowable:
     return KeepTogether(
         [
             Paragraph(_e(titulo.upper()), SECAO),
-            HRFlowable(width="100%", thickness=0.8, color=colors.black, spaceBefore=3, spaceAfter=7),
+            HRFlowable(
+                width="100%",
+                thickness=0.8,
+                color=colors.black,
+                spaceBefore=3,
+                spaceAfter=7,
+            ),
         ]
     )
 
 
 def _montar(cv: Curriculo) -> list[Flowable]:
     c = cv.cabecalho
-    story: list[Flowable] = [Paragraph(_e(c.nome.upper()), NOME), Paragraph(_e(c.headline), HEADLINE)]
+    story: list[Flowable] = [
+        Paragraph(_e(c.nome.upper()), NOME),
+        Paragraph(_e(c.headline), HEADLINE),
+    ]
     for linha in (c.cidade, c.telefone, c.email, f"LinkedIn: {c.linkedin}"):
         story.append(Paragraph(_e(linha), CONTATO))
     if c.github:
@@ -70,9 +92,14 @@ def _montar(cv: Curriculo) -> list[Flowable]:
     story.append(_secao("Experiência Profissional"))
     for x in cv.experiencias:
         modo = f" ({x.modalidade})" if x.modalidade else ""
-        titulo = f"{x.empresa} – {x.cargo}{modo} | {data_pt(x.inicio)} – {data_pt(x.fim)}"
+        titulo = (
+            f"{x.empresa} – {x.cargo}{modo} | {data_pt(x.inicio)} – {data_pt(x.fim)}"
+        )
         bullets = ListFlowable(
-            [ListItem(Paragraph(_e(b.texto), LINHA_ITEM), leftIndent=12) for b in x.bullets],
+            [
+                ListItem(Paragraph(_e(b.texto), LINHA_ITEM), leftIndent=12)
+                for b in x.bullets
+            ],
             bulletType="bullet",
             start="•",
             bulletFontName="Helvetica",
@@ -84,7 +111,12 @@ def _montar(cv: Curriculo) -> list[Flowable]:
     if cv.formacao:
         story.append(_secao("Formação Acadêmica"))
         for f in cv.formacao:
-            story.append(Paragraph(_e(f"{f.curso} – {f.instituicao} (Conclusão: {f.conclusao})"), LINHA_ITEM))
+            story.append(
+                Paragraph(
+                    _e(f"{f.curso} – {f.instituicao} (Conclusão: {f.conclusao})"),
+                    LINHA_ITEM,
+                )
+            )
 
     if cv.cursos:
         story.append(_secao("Cursos"))
@@ -93,7 +125,10 @@ def _montar(cv: Curriculo) -> list[Flowable]:
             story.append(Paragraph(_e(f"{k.nome} – {k.instituicao}{ano}"), LINHA_ITEM))
 
     if cv.habilidades:
-        story += [_secao("Habilidades"), Paragraph(_e(" • ".join(cv.habilidades)), TEXTO)]
+        story += [
+            _secao("Habilidades"),
+            Paragraph(_e(" • ".join(cv.habilidades)), TEXTO),
+        ]
 
     if cv.idiomas:
         linha = " | ".join(f"{i.idioma}: {i.nivel}" for i in cv.idiomas)
