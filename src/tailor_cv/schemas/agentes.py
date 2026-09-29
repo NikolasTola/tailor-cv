@@ -50,3 +50,33 @@ class SaidaExperiencia(BaseModel):
     experiencias: list[ExperienciaGerada] = Field(
         description="Somente as experiências que devem entrar no currículo"
     )
+
+
+class FormacaoGerada(BaseModel):
+    origem: str = Field(description="ID da formação")
+    curso: str = Field(description="Nome do curso em português do Brasil")
+
+
+class SaidaFormacao(BaseModel):
+    formacoes: list[FormacaoGerada] = Field(description="Todas as formações recebidas")
+
+
+class SaidaCursos(BaseModel):
+    origens: list[str] = Field(
+        description="IDs dos cursos escolhidos, do mais relevante para o menos"
+    )
+
+
+class HabilidadeEscolhida(BaseModel):
+    origem: str = Field(description="Item copiado exatamente da lista de habilidades")
+    texto: str = Field(description="Como a habilidade aparece no currículo")
+
+
+class SaidaHabilidades(BaseModel):
+    habilidades: list[HabilidadeEscolhida] = Field(
+        description="Habilidades escolhidas, da mais relevante para a menos"
+    )
+
+
+class SaidaResumo(BaseModel):
+    resumo: str = Field(description="Resumo profissional em português do Brasil")
