@@ -35,6 +35,7 @@ AGENTES_LLM = (
     "cursos",
     "habilidades",
     "resumo",
+    "validador",
 )
 
 
@@ -113,6 +114,9 @@ def _executar_json(vaga: Path, dados: Path) -> Path:
         estado["curriculo"].model_dump_json(indent=2), encoding="utf-8"
     )
     validacao = estado["validacao"]
+    fidelidade = estado.get("fidelidade")
+    if fidelidade is None:
+        painel.nos["validar_fidelidade"].status = "pulado"
     incluidas = {x.origem for x in estado["experiencias"]}
     (pasta / "relatorio.md").write_text(
         gerar_relatorio(
@@ -122,6 +126,7 @@ def _executar_json(vaga: Path, dados: Path) -> Path:
             incluidas,
             estado["omissoes"],
             validacao,
+            fidelidade,
             painel,
         ),
         encoding="utf-8",
@@ -132,13 +137,15 @@ def _executar_json(vaga: Path, dados: Path) -> Path:
             typer.secho(
                 f"ALERTA   experiência {id_} omitida: {motivo}", fg=typer.colors.YELLOW
             )
-    for alerta in validacao.alertas:
+    alertas = validacao.alertas + (fidelidade.alertas if fidelidade else [])
+    bloqueios = validacao.bloqueios + (fidelidade.bloqueios if fidelidade else [])
+    for alerta in alertas:
         typer.secho(f"ALERTA   {alerta}", fg=typer.colors.YELLOW)
-    for bloqueio in validacao.bloqueios:
+    for bloqueio in bloqueios:
         typer.secho(f"BLOQUEIO {bloqueio}", fg=typer.colors.RED)
-    if not validacao.aprovado:
+    if bloqueios:
         _erro(
-            f"O currículo não passou nas regras ({len(validacao.bloqueios)} bloqueio(s)). "
+            f"O currículo não passou na validação ({len(bloqueios)} bloqueio(s)). "
             f"Detalhes em {pasta / 'relatorio.md'}"
         )
 

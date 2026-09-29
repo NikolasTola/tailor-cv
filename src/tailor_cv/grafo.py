@@ -3,7 +3,10 @@
 Onda 1  analisador, dados_pessoais, idiomas, formacao   (em paralelo)
 Onda 2  titulo_e_nome, experiencia, cursos              (esperam o analisador)
 Onda 3  habilidades, resumo                             (esperam experiência e cursos)
-Onda 4  montar, validar_regras                          (esperam todos)
+Onda 4  montar, validar_regras, validar_fidelidade      (esperam todos)
+
+A fidelidade (LLM) só roda se as regras (grátis) passarem: não faz sentido gastar
+uma chamada conferindo o sentido de um currículo que já tem um número inventado.
 
 Cada nó avisa quando começa e termina (stream "custom"), o que alimenta o painel.
 """
@@ -38,7 +41,7 @@ from tailor_cv.schemas.curriculo import (
     Habilidade,
     Idioma,
 )
-from tailor_cv.validacao import ResultadoValidacao, validar_regras
+from tailor_cv.validacao import ResultadoValidacao, validar_fidelidade, validar_regras
 
 # (nó, onda) na ordem em que aparecem no painel
 NOS: list[tuple[str, int]] = [
@@ -53,6 +56,7 @@ NOS: list[tuple[str, int]] = [
     ("resumo", 3),
     ("montar", 4),
     ("validar_regras", 4),
+    ("validar_fidelidade", 4),
 ]
 
 
@@ -71,6 +75,7 @@ class Estado(TypedDict, total=False):
     resumo: str
     curriculo: Curriculo
     validacao: ResultadoValidacao
+    fidelidade: ResultadoValidacao
 
 
 def _com_status(
@@ -170,6 +175,9 @@ def construir_grafo(
         "validar_regras": lambda e: {
             "validacao": validar_regras(e["curriculo"], base, i18n, config)
         },
+        "validar_fidelidade": lambda e: {
+            "fidelidade": validar_fidelidade(e["curriculo"], base, llms["validador"])
+        },
     }
 
     grafo = StateGraph(Estado)
@@ -187,5 +195,10 @@ def construir_grafo(
         "montar",
     )
     grafo.add_edge("montar", "validar_regras")
-    grafo.add_edge("validar_regras", END)
+    grafo.add_conditional_edges(
+        "validar_regras",
+        lambda e: "validar_fidelidade" if e["validacao"].aprovado else END,
+        ["validar_fidelidade", END],
+    )
+    grafo.add_edge("validar_fidelidade", END)
     return grafo.compile()

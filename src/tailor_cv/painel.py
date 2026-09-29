@@ -19,14 +19,24 @@ ROTULOS = {
     "resumo": "Resumo",
     "montar": "Montar currículo",
     "validar_regras": "Validar regras",
+    "validar_fidelidade": "Validar fidelidade",
 }
-LLM = {"analisador", "formacao", "experiencia", "cursos", "habilidades", "resumo"}
+LLM = {
+    "analisador",
+    "formacao",
+    "experiencia",
+    "cursos",
+    "habilidades",
+    "resumo",
+    "validar_fidelidade",
+}
 ESTILO = {
     "aguardando": ("·  aguardando", "dim"),
     "rodando": ("…  rodando", "yellow"),
     "ok": ("✓  ok", "green"),
     "cache": ("✓  cache", "cyan"),
     "erro": ("✗  erro", "red"),
+    "pulado": ("–  pulado", "dim"),
 }
 
 

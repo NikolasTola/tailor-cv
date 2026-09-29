@@ -12,6 +12,7 @@ def gerar_relatorio(
     incluidas: set[str],
     omissoes: dict[str, str],
     validacao: ResultadoValidacao | None,
+    fidelidade: ResultadoValidacao | None,
     painel: Painel,
 ) -> str:
     linhas = [
@@ -39,12 +40,18 @@ def gerar_relatorio(
         justificativa = a.justificativa if a else "-"
         linhas.append(f"| {nota} | {situacao} | {id_} | {justificativa} |")
 
-    if validacao is not None:
-        linhas += ["", "## Validação de regras", ""]
-        if not validacao.bloqueios and not validacao.alertas:
+    for titulo, resultado in (
+        ("Validação de regras", validacao),
+        ("Validação de fidelidade", fidelidade),
+    ):
+        linhas += ["", f"## {titulo}", ""]
+        if resultado is None:
+            linhas.append("Não executada.")
+        elif not resultado.bloqueios and not resultado.alertas:
             linhas.append("Nenhum problema encontrado.")
-        linhas += [f"- **Bloqueio:** {p}" for p in validacao.bloqueios]
-        linhas += [f"- Alerta: {p}" for p in validacao.alertas]
+        else:
+            linhas += [f"- **Bloqueio:** {p}" for p in resultado.bloqueios]
+            linhas += [f"- Alerta: {p}" for p in resultado.alertas]
 
     linhas += [
         "",

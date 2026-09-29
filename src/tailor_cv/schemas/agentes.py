@@ -80,3 +80,21 @@ class SaidaHabilidades(BaseModel):
 
 class SaidaResumo(BaseModel):
     resumo: str = Field(description="Resumo profissional em português do Brasil")
+
+
+TipoProblema = Literal[
+    "sem_lastro", "inflacao", "traducao_errada", "forma_verbal", "termo_traduzido"
+]
+
+
+class ProblemaFidelidade(BaseModel):
+    item: str = Field(description="ID do item com problema, copiado da lista recebida")
+    tipo: TipoProblema
+    trecho: str = Field(description="Trecho exato do texto em português com problema")
+    explicacao: str = Field(description="O que está errado, em uma frase")
+
+
+class SaidaFidelidade(BaseModel):
+    problemas: list[ProblemaFidelidade] = Field(
+        description="Somente problemas reais; lista vazia se estiver tudo fiel"
+    )

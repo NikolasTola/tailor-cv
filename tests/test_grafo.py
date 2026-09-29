@@ -11,17 +11,27 @@ from tailor_cv.carregadores import carregar_base, carregar_i18n
 from tailor_cv.config import carregar_config
 from tailor_cv.grafo import NOS, construir_grafo
 from tailor_cv.painel import Painel
+from tailor_cv.schemas.agentes import SaidaFidelidade
 
 RAIZ = Path(__file__).parent.parent
 BASE = carregar_base(RAIZ / "exemplos" / "dados")
 I18N = carregar_i18n(RAIZ / "i18n_pt.yaml")
 CONFIG = carregar_config(RAIZ / "config.yaml")
-AGENTES = ("analisador", "experiencia", "formacao", "cursos", "habilidades", "resumo")
+AGENTES = (
+    "analisador",
+    "experiencia",
+    "formacao",
+    "cursos",
+    "habilidades",
+    "resumo",
+    "validador",
+)
+FIEL = SaidaFidelidade(problemas=[])
 
 
 def _llm() -> LLMFalsa:
     # uma única LLM falsa responde a todos: ela escolhe a resposta pelo schema
-    return LLMFalsa(ANALISE, _saida(), FORMACAO, CURSOS, HABILIDADES, RESUMO)
+    return LLMFalsa(ANALISE, _saida(), FORMACAO, CURSOS, HABILIDADES, RESUMO, FIEL)
 
 
 def _rodar(entrada: dict, llm: LLMFalsa | None = None) -> tuple[dict, list[dict]]:
@@ -69,7 +79,7 @@ def test_ondas_respeitam_as_dependencias():
     assert ordem.index("analisador") < ordem.index("experiencia")
     assert ordem.index("experiencia") < ordem.index("habilidades")
     assert ordem.index("cursos") < ordem.index("resumo")
-    assert ordem[-2:] == ["montar", "validar_regras"]
+    assert ordem[-3:] == ["montar", "validar_regras", "validar_fidelidade"]
 
 
 class LLMLenta(LLMFalsa):
@@ -98,7 +108,7 @@ class LLMLenta(LLMFalsa):
 
 
 def test_agentes_da_mesma_onda_rodam_em_paralelo():
-    llm = LLMLenta(ANALISE, _saida(), FORMACAO, CURSOS, HABILIDADES, RESUMO)
+    llm = LLMLenta(ANALISE, _saida(), FORMACAO, CURSOS, HABILIDADES, RESUMO, FIEL)
     _rodar({"texto_vaga": "vaga"}, llm)
     assert llm.pico >= 2
 
@@ -124,3 +134,14 @@ def test_erro_num_agente_e_avisado_e_propagado():
     assert {"no": "resumo", "status": "erro"}.items() <= next(
         e for e in eventos if e["no"] == "resumo" and e["status"] == "erro"
     ).items()
+
+
+def test_fidelidade_nao_roda_se_as_regras_bloquearem():
+    llm = _llm()
+    llm.respostas[type(RESUMO)] = RESUMO.model_copy(
+        update={"resumo": "Profissional com 10 anos de experiência em AWS."}
+    )
+    estado, eventos = _rodar({"texto_vaga": "vaga"}, llm)
+    assert not estado["validacao"].aprovado
+    assert "fidelidade" not in estado
+    assert all(e["no"] != "validar_fidelidade" for e in eventos)
