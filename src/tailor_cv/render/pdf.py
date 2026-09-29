@@ -127,7 +127,7 @@ def _montar(cv: Curriculo) -> list[Flowable]:
     if cv.habilidades:
         story += [
             _secao("Habilidades"),
-            Paragraph(_e(" • ".join(cv.habilidades)), TEXTO),
+            Paragraph(_e(" • ".join(h.texto for h in cv.habilidades)), TEXTO),
         ]
 
     if cv.idiomas:

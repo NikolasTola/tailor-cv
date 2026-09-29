@@ -1,10 +1,23 @@
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
+from pydantic import (
+    BaseModel,
+    BeforeValidator,
+    ConfigDict,
+    Field,
+    StringConstraints,
+    model_validator,
+)
 
 AnoMes = Annotated[str, StringConstraints(pattern=r"^\d{4}-(0[1-9]|1[0-2])$")]
 Texto = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
 Modalidade = Literal["Remoto", "Híbrido", "Presencial"]
+# Um bullet pode fundir até dois bullets da mesma experiência: aceita "id" ou ["id1", "id2"]
+Origens = Annotated[
+    list[Texto],
+    BeforeValidator(lambda v: [v] if isinstance(v, str) else v),
+    Field(min_length=1),
+]
 
 
 class Base(BaseModel):
@@ -23,13 +36,12 @@ class Cabecalho(Base):
 
 
 class Bullet(Base):
-    origem: Texto = Field(
-        description="ID do bullet no arquivo de experiência de origem"
-    )
+    origem: Origens = Field(description="ID(s) do(s) bullet(s) de origem")
     texto: Texto
 
 
 class Experiencia(Base):
+    origem: Texto = Field(description="ID do arquivo de experiência de origem")
     empresa: Texto
     cargo: Texto
     modalidade: Modalidade | None = None
@@ -46,15 +58,22 @@ class Experiencia(Base):
 
 
 class Formacao(Base):
+    origem: Texto
     curso: Texto
     instituicao: Texto
     conclusao: Texto
 
 
 class Curso(Base):
+    origem: Texto
     nome: Texto
     instituicao: Texto
     ano: Texto | None = None
+
+
+class Habilidade(Base):
+    origem: Texto = Field(description="Item exato do habilidades.md")
+    texto: Texto = Field(description="Como aparece no currículo")
 
 
 class Idioma(Base):
@@ -68,5 +87,5 @@ class Curriculo(Base):
     experiencias: list[Experiencia] = Field(min_length=1)
     formacao: list[Formacao] = []
     cursos: list[Curso] = []
-    habilidades: list[Texto] = []
+    habilidades: list[Habilidade] = []
     idiomas: list[Idioma] = []

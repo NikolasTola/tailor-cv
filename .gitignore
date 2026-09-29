@@ -7,8 +7,6 @@ execucoes/*
 !execucoes/.gitkeep
 vagas/*
 !vagas/.gitkeep
-tests/*
-!tests/.gitkeep
 
 .ruff_cache/
 

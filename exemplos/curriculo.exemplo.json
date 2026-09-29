@@ -11,6 +11,7 @@
   "resumo": "Profissional com experiência em engenharia de dados e aplicações de IA generativa em nuvem AWS. Possui vivência na construção de sistemas RAG em produção, orquestração de agentes com LangGraph e governança de custos de LLMs. Atuação próxima a times de negócio na tradução de requisitos em soluções técnicas.",
   "experiencias": [
     {
+      "origem": "empresa-alfa",
       "empresa": "Empresa Alfa",
       "cargo": "Engenheira de IA",
       "modalidade": "Híbrido",
@@ -32,6 +33,7 @@
       ]
     },
     {
+      "origem": "empresa-beta",
       "empresa": "Empresa Beta",
       "cargo": "Analista de Dados",
       "modalidade": "Remoto",
@@ -51,6 +53,7 @@
   ],
   "formacao": [
     {
+      "origem": "estatistica",
       "curso": "Bacharelado em Estatística",
       "instituicao": "Universidade Exemplo",
       "conclusao": "2019"
@@ -58,26 +61,55 @@
   ],
   "cursos": [
     {
+      "origem": "aws-ml-specialty",
       "nome": "AWS Certified Machine Learning – Specialty",
       "instituicao": "Amazon Web Services",
       "ano": "2024"
     },
     {
+      "origem": "langgraph-agents",
       "nome": "LangGraph: agentes com estado",
       "instituicao": "Plataforma Exemplo",
       "ano": "2025"
     }
   ],
   "habilidades": [
-    "Python",
-    "AWS Bedrock",
-    "LangGraph",
-    "RAG",
-    "OpenSearch",
-    "AWS CDK",
-    "SQL",
-    "Comunicação",
-    "Organização"
+    {
+      "origem": "Python",
+      "texto": "Python"
+    },
+    {
+      "origem": "AWS Bedrock",
+      "texto": "AWS Bedrock"
+    },
+    {
+      "origem": "LangGraph",
+      "texto": "LangGraph"
+    },
+    {
+      "origem": "RAG",
+      "texto": "RAG"
+    },
+    {
+      "origem": "OpenSearch",
+      "texto": "OpenSearch"
+    },
+    {
+      "origem": "AWS CDK",
+      "texto": "AWS CDK"
+    },
+    {
+      "origem": "SQL",
+      "texto": "SQL"
+    },
+    {
+      "origem": "Communication",
+      "texto": "Comunicação"
+    },
+    {
+      "origem": "Organization",
+      "texto": "Organização"
+    }
   ],
   "idiomas": [
     {

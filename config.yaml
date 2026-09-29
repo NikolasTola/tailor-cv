@@ -1,0 +1,23 @@
+# Configuração do TailorCV. Os modelos de LLM entram aqui na Etapa 3.
+
+limites:
+  paginas_max: 2
+  resumo_palavras_max: 80
+  bullet_palavras_max: 25
+  experiencias:
+    nota_corte: 4          # abaixo disso, a experiência é omitida
+    max: 5
+    bullets_relevante: [3, 5]
+    bullets_secundaria: [1, 2]
+  cursos_max: 6
+  habilidades_max: 14
+
+# Bloqueiam o currículo se aparecerem no texto (sem diferenciar maiúsculas).
+palavras_proibidas:
+  - apaixonada
+  - apaixonado
+  - proativa
+  - proativo
+  - sinergia
+  - fora da caixa
+  - vestir a camisa
