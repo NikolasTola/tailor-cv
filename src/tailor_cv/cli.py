@@ -1,11 +1,18 @@
+import json
+from datetime import datetime
 from pathlib import Path
 from typing import Annotated, NoReturn
 
 import typer
+from dotenv import load_dotenv
 from pydantic import ValidationError
 
+from tailor_cv.agentes import ErroDeRegra
+from tailor_cv.cache import ler_analise, salvar_analise
 from tailor_cv.carregadores import ErroDeOrigem, carregar_base, carregar_i18n
 from tailor_cv.config import carregar_config
+from tailor_cv.grafo import construir_grafo
+from tailor_cv.llm import criar_llm
 from tailor_cv.render import gerar_pdf
 from tailor_cv.schemas import Curriculo
 from tailor_cv.validacao import validar_regras
@@ -36,9 +43,69 @@ def _ler_curriculo(arquivo: Path) -> Curriculo:
 
 
 @app.command("json")
-def gerar_json(vaga: VagaOpt) -> None:
-    """Roda os agentes e gera curriculos/curriculo.<nome_vaga>.json."""
-    typer.echo(f"[em construção] json para {vaga.stem}")
+def gerar_json(vaga: VagaOpt, dados: DadosOpt = Path("dados")) -> None:
+    """Roda os agentes e gera curriculos/curriculo.<nome_vaga>.json.
+
+    Etapa 3: roda só o Analisador e a Experiência e salva os resultados parciais.
+    """
+    load_dotenv()
+    if not vaga.is_file():
+        _erro(f"Arquivo da vaga não encontrado: {vaga}")
+    texto_vaga = vaga.read_text(encoding="utf-8")
+    nome_vaga = vaga.stem
+    try:
+        base = carregar_base(dados)
+        i18n = carregar_i18n()
+        config = carregar_config()
+    except ErroDeOrigem as exc:
+        _erro(f"Problema ao carregar a base ou a configuração:\n  {exc}")
+
+    analise = ler_analise(nome_vaga, texto_vaga, base.perfil)
+    typer.echo("Análise da vaga: " + ("em cache" if analise else "chamando a LLM..."))
+    try:
+        llms = {
+            "analisador": criar_llm(config.modelos.analisador),
+            "experiencia": criar_llm(config.modelos.experiencia),
+        }
+        grafo = construir_grafo(base, config, i18n, llms)
+        entrada = {"texto_vaga": texto_vaga} | ({"analise": analise} if analise else {})
+        estado = grafo.invoke(entrada)
+    except ErroDeRegra as exc:
+        _erro(f"Um agente violou uma regra: {exc}")
+    except Exception as exc:  # noqa: BLE001 — erros de provedor variam: chave, cota, modelo
+        _erro(
+            f"Falha ao chamar a LLM: {exc}\n"
+            "Confira as chaves no .env e os nomes dos modelos no config.yaml."
+        )
+
+    if analise is None:
+        salvar_analise(nome_vaga, texto_vaga, estado["analise"])
+
+    pasta = (
+        Path("execucoes") / f"{datetime.now().astimezone():%Y-%m-%d_%H%M%S}_{nome_vaga}"
+    )
+    pasta.mkdir(parents=True, exist_ok=True)
+    (pasta / "analise_vaga.json").write_text(
+        estado["analise"].model_dump_json(indent=2), encoding="utf-8"
+    )
+    parcial = {
+        "avaliacoes": [a.model_dump() for a in estado["avaliacoes"]],
+        "experiencias": [x.model_dump() for x in estado["experiencias"]],
+    }
+    (pasta / "experiencias.json").write_text(
+        json.dumps(parcial, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+
+    a = estado["analise"]
+    typer.secho(
+        f"\nVaga: {a.cargo} ({a.senioridade}) | headline: {a.headline}", bold=True
+    )
+    typer.echo("\nNotas de relevância:")
+    incluidas = {x.origem for x in estado["experiencias"]}
+    for av in sorted(estado["avaliacoes"], key=lambda av: -av.nota):
+        marca = "incluída" if av.origem in incluidas else "omitida "
+        typer.echo(f"  {av.nota:>2}  {marca}  {av.origem}: {av.justificativa}")
+    typer.secho(f"\nResultados parciais salvos em {pasta}", fg=typer.colors.GREEN)
 
 
 @app.command("pdf")

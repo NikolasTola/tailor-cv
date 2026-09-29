@@ -1,3 +1,5 @@
+"""Leitura do config.yaml."""
+
 from pathlib import Path
 
 import yaml
@@ -10,8 +12,19 @@ class Base(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+class Modelos(Base):
+    analisador: str
+    experiencia: str
+    resumo: str
+    formacao: str
+    cursos: str
+    habilidades: str
+    validador: str
+
+
 class LimitesExperiencias(Base):
     nota_corte: int = Field(ge=0, le=10)
+    nota_relevante: int = Field(ge=0, le=10)
     max: int = Field(ge=1)
     bullets_relevante: tuple[int, int]
     bullets_secundaria: tuple[int, int]
@@ -27,6 +40,7 @@ class Limites(Base):
 
 
 class Config(Base):
+    modelos: Modelos
     limites: Limites
     palavras_proibidas: list[str] = []
 

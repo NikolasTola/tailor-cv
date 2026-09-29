@@ -1,0 +1,29 @@
+Engenheiro(a) de IA Pleno
+Empresa Fictícia S.A. · Belo Horizonte, MG (Híbrido)
+Há 3 dias · Mais de 100 candidaturas
+Candidatar-se    Salvar
+
+Sobre a vaga
+Buscamos uma pessoa Engenheira de IA para construir aplicações de IA generativa
+em produção na AWS, junto aos times de produto.
+
+Responsabilidades
+- Desenvolver soluções com LLMs, incluindo RAG e agentes
+- Colocar modelos e aplicações em produção na AWS
+- Monitorar custos e qualidade das aplicações de IA
+
+Requisitos
+- Python
+- Experiência com LLMs e RAG
+- AWS (Bedrock, ECS ou Lambda)
+- Infraestrutura como código
+
+Diferenciais
+- LangGraph ou LangChain
+- OpenSearch ou outro banco vetorial
+- Inglês avançado
+
+Benefícios
+Vale-refeição · Plano de saúde · Home office flexível
+
+Pessoas também viram: Cientista de Dados Sênior, Engenheiro de ML

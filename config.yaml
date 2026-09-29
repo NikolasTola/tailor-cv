@@ -1,4 +1,15 @@
-# Configuração do TailorCV. Os modelos de LLM entram aqui na Etapa 3.
+# Configuração do TailorCV.
+
+# Modelo de cada agente, no formato "provedor:modelo".
+# Confira os nomes atuais no Google AI Studio e no console do Groq.
+modelos:
+  analisador:  google_genai:gemini-2.5-flash
+  experiencia: google_genai:gemini-2.5-flash
+  resumo:      google_genai:gemini-2.5-flash
+  formacao:    google_genai:gemini-2.5-flash-lite
+  cursos:      google_genai:gemini-2.5-flash-lite
+  habilidades: google_genai:gemini-2.5-flash-lite
+  validador:   groq:openai/gpt-oss-120b
 
 limites:
   paginas_max: 2
@@ -6,6 +17,7 @@ limites:
   bullet_palavras_max: 25
   experiencias:
     nota_corte: 4          # abaixo disso, a experiência é omitida
+    nota_relevante: 7      # a partir disso, a experiência ganha mais bullets
     max: 5
     bullets_relevante: [3, 5]
     bullets_secundaria: [1, 2]
