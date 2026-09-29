@@ -6,6 +6,7 @@ AnoMes = Annotated[str, StringConstraints(pattern=r"^\d{4}-(0[1-9]|1[0-2])$")]
 Texto = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
 Slug = Annotated[str, StringConstraints(pattern=r"^[a-z0-9][a-z0-9-]*$")]
 Nivel = Literal["native", "fluent", "advanced", "intermediate", "basic"]
+ModoTrabalho = Literal["remote", "hybrid", "onsite"]
 
 
 class Base(BaseModel):
@@ -38,7 +39,7 @@ class ExperienciaOrigem(Base):
     start: AnoMes
     end: AnoMes | None = None  # None = emprego atual ("present" no arquivo)
     location: Texto | None = None
-    work_mode: Literal["remote", "hybrid", "onsite"] | None = None
+    work_mode: ModoTrabalho | None = None
     always_include: bool = False
     context: Texto | None = None
     achievements: list[Conquista] = Field(min_length=1)

@@ -1,0 +1,24 @@
+# Traduções determinísticas usadas pelos agentes de regra (sem LLM).
+# Adicione aqui qualquer idioma novo que aparecer no seu idiomas.md.
+
+niveis:
+  native: Nativo
+  fluent: Fluente
+  advanced: Avançado
+  intermediate: Intermediário
+  basic: Básico
+
+idiomas:
+  Portuguese: Português
+  English: Inglês
+  Spanish: Espanhol
+  French: Francês
+  German: Alemão
+  Italian: Italiano
+  Japanese: Japonês
+  Mandarin: Mandarim
+
+modalidades:
+  remote: Remoto
+  hybrid: Híbrido
+  onsite: Presencial

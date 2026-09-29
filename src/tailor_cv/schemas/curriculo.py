@@ -4,6 +4,7 @@ from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_vali
 
 AnoMes = Annotated[str, StringConstraints(pattern=r"^\d{4}-(0[1-9]|1[0-2])$")]
 Texto = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
+Modalidade = Literal["Remoto", "Híbrido", "Presencial"]
 
 
 class Base(BaseModel):
@@ -31,7 +32,7 @@ class Bullet(Base):
 class Experiencia(Base):
     empresa: Texto
     cargo: Texto
-    modalidade: Literal["Remoto", "Híbrido", "Presencial"] | None = None
+    modalidade: Modalidade | None = None
     inicio: AnoMes
     fim: AnoMes | None = Field(default=None, description="None = emprego atual")
     bullets: list[Bullet] = Field(min_length=1)
