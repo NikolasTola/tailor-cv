@@ -8,6 +8,7 @@ execucoes/*
 vagas/*
 !vagas/.gitkeep
 
+
 .ruff_cache/
 
 .venv/

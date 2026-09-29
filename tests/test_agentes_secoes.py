@@ -159,7 +159,9 @@ def test_prompt_de_habilidades_recebe_as_evidencias():
 
 
 def test_resumo_normaliza_espacos():
-    resumo = escrever_resumo(ANALISE, _experiencias(), [], [], CONFIG, LLMFalsa(RESUMO))
+    resumo = escrever_resumo(
+        ANALISE, _experiencias(), [], [], BASE, CONFIG, LLMFalsa(RESUMO)
+    )
     assert "\n" not in resumo and "  " not in resumo
 
 
@@ -174,7 +176,7 @@ def test_curriculo_montado_por_todos_os_agentes_passa_nas_regras():
         ANALISE, experiencias, cursos, BASE, CONFIG, LLMFalsa(HABILIDADES)
     )
     resumo = escrever_resumo(
-        ANALISE, experiencias, habilidades, formacao, CONFIG, LLMFalsa(RESUMO)
+        ANALISE, experiencias, cursos, formacao, BASE, CONFIG, LLMFalsa(RESUMO)
     )
     cv = Curriculo(
         cabecalho=Cabecalho(
@@ -190,3 +192,41 @@ def test_curriculo_montado_por_todos_os_agentes_passa_nas_regras():
     )
     resultado = validar_regras(cv, BASE, I18N, CONFIG)
     assert resultado.aprovado, resultado.bloqueios
+
+
+# ---------- Habilidades: só com evidência ou pedidas na vaga ----------
+
+
+def test_tecnica_sem_evidencia_e_fora_da_vaga_nao_chega_a_llm():
+    # Power BI só tem lastro em beta-dash, que não foi selecionado, e a vaga não pede
+    so_alfa = [x for x in _experiencias() if x.origem == "empresa-alfa"]
+    llm = LLMFalsa(HABILIDADES)
+    selecionar_habilidades(ANALISE, so_alfa, [], BASE, CONFIG, llm)
+    humano = llm.chamadas[0][1].content
+    lista = humano.split("Habilidades da candidata:")[1].split("Tecnologias")[0]
+    assert "Power BI" not in lista and "SQL" not in lista
+    assert "AWS Bedrock" in lista  # evidência em alfa-rag
+    assert "RAG" in lista  # sem tag, mas pedida na vaga
+
+
+def test_tecnica_sem_evidencia_e_descartada_mesmo_se_a_llm_escolher():
+    saida = SaidaHabilidades(
+        habilidades=[
+            HabilidadeEscolhida(origem="Power BI", texto="Power BI"),
+            HabilidadeEscolhida(origem="Python", texto="Python"),
+        ]
+    )
+    so_alfa = [x for x in _experiencias() if x.origem == "empresa-alfa"]
+    resultado = selecionar_habilidades(
+        ANALISE, so_alfa, [], BASE, CONFIG, LLMFalsa(saida)
+    )
+    assert [h.origem for h in resultado] == ["Python"]
+
+
+def test_tecnica_pedida_na_vaga_entra_mesmo_sem_evidencia():
+    analise = ANALISE.model_copy(update={"requisitos_desejaveis": ["SQL e Power BI"]})
+    saida = SaidaHabilidades(
+        habilidades=[HabilidadeEscolhida(origem="Power BI", texto="Power BI")]
+    )
+    resultado = selecionar_habilidades(analise, [], [], BASE, CONFIG, LLMFalsa(saida))
+    assert [h.origem for h in resultado] == ["Power BI"]

@@ -37,7 +37,9 @@ def selecionar_experiencias(
     config: Config,
     i18n: I18n,
     llm: ModeloEstruturado,
-) -> tuple[list[Experiencia], list[AvaliacaoExperiencia]]:
+) -> tuple[list[Experiencia], list[AvaliacaoExperiencia], dict[str, str]]:
+    """Devolve as experiências selecionadas, as avaliações da LLM e, para cada
+    experiência omitida, o motivo da omissão."""
     lim = config.limites
     sistema = prompts.EXPERIENCIA.format(
         nota_corte=lim.experiencias.nota_corte,
@@ -61,34 +63,41 @@ def selecionar_experiencias(
 
     # A decisão de incluir é por regra, a partir da nota: a LLM não pode
     # "esquecer" uma experiência obrigatória nem incluir uma abaixo do corte.
+    corte = lim.experiencias.nota_corte
     notas = {a.origem: max(0, min(10, a.nota)) for a in saida.avaliacoes}
-    origem_por_id = {x.id: x for x in base.experiencias}
+    geradas = {g.origem: g for g in saida.experiencias if g.bullets}
     selecionadas: list[Experiencia] = []
-    for gerada in saida.experiencias:
-        origem = origem_por_id.get(gerada.origem)
-        if origem is None:
-            continue  # ID inventado: descartado aqui, nunca chega ao currículo
-        incluir = origem.always_include or (
-            notas.get(origem.id, 0) >= lim.experiencias.nota_corte
-        )
-        if not incluir or not gerada.bullets:
-            continue
-        selecionadas.append(
-            Experiencia(
-                origem=origem.id,
-                empresa=origem.company,
-                cargo=gerada.cargo,
-                modalidade=modalidade(origem.work_mode, i18n),
-                inicio=origem.start,
-                fim=origem.end,
-                bullets=[
-                    Bullet(origem=b.origem, texto=b.texto) for b in gerada.bullets
-                ],
+    omissoes: dict[str, str] = {}
+    for origem in base.experiencias:
+        deve_entrar = origem.always_include or notas.get(origem.id, 0) >= corte
+        gerada = geradas.get(origem.id)
+        if origem.id not in notas and not origem.always_include:
+            omissoes[origem.id] = "a LLM não avaliou esta experiência"
+        elif not deve_entrar:
+            omissoes[origem.id] = f"nota abaixo do corte ({corte})"
+        elif gerada is None:
+            omissoes[origem.id] = "a LLM não gerou bullets, apesar da nota"
+        else:
+            selecionadas.append(
+                Experiencia(
+                    origem=origem.id,
+                    empresa=origem.company,
+                    cargo=gerada.cargo,
+                    modalidade=modalidade(origem.work_mode, i18n),
+                    inicio=origem.start,
+                    fim=origem.end,
+                    bullets=[
+                        Bullet(origem=b.origem, texto=b.texto) for b in gerada.bullets
+                    ],
+                )
             )
-        )
+    # IDs inventados pela LLM nunca entram: o laço acima só percorre a base
 
     # Mais recente primeiro; emprego atual (fim = None) no topo
     selecionadas.sort(
         key=lambda x: (x.fim is None, x.fim or "", x.inicio), reverse=True
     )
-    return selecionadas[: lim.experiencias.max], saida.avaliacoes
+    maximo = lim.experiencias.max
+    for excedente in selecionadas[maximo:]:
+        omissoes[excedente.origem] = f"acima do limite de {maximo} experiências"
+    return selecionadas[:maximo], saida.avaliacoes, omissoes

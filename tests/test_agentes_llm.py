@@ -9,7 +9,6 @@ from tailor_cv.agentes.experiencia import selecionar_experiencias
 from tailor_cv.cache import ler_analise, salvar_analise
 from tailor_cv.carregadores import carregar_base, carregar_i18n
 from tailor_cv.config import carregar_config
-from tailor_cv.grafo import construir_grafo
 from tailor_cv.schemas import Curriculo
 from tailor_cv.schemas.agentes import (
     AnaliseVaga,
@@ -107,7 +106,7 @@ def test_analisador_com_headline_inventado():
 
 
 def test_fatos_vem_da_origem_e_ordem_e_cronologica():
-    experiencias, avaliacoes = selecionar_experiencias(
+    experiencias, avaliacoes, omissoes = selecionar_experiencias(
         ANALISE, BASE, CONFIG, I18N, LLMFalsa(_saida())
     )
     assert [x.origem for x in experiencias] == ["empresa-alfa", "empresa-beta"]
@@ -119,10 +118,11 @@ def test_fatos_vem_da_origem_e_ordem_e_cronologica():
         "Híbrido",
     )
     assert len(avaliacoes) == 2
+    assert omissoes == {}
 
 
 def test_experiencia_abaixo_do_corte_e_omitida():
-    experiencias, _ = selecionar_experiencias(
+    experiencias, *_ = selecionar_experiencias(
         ANALISE, BASE, CONFIG, I18N, LLMFalsa(_saida(nota_beta=2))
     )
     assert [x.origem for x in experiencias] == ["empresa-alfa"]
@@ -131,21 +131,21 @@ def test_experiencia_abaixo_do_corte_e_omitida():
 def test_always_include_entra_mesmo_com_nota_baixa():
     saida = _saida()
     saida.avaliacoes[0].nota = 1  # empresa-alfa tem always_include: true
-    experiencias, _ = selecionar_experiencias(
+    experiencias, *_ = selecionar_experiencias(
         ANALISE, BASE, CONFIG, I18N, LLMFalsa(saida)
     )
     assert "empresa-alfa" in [x.origem for x in experiencias]
 
 
 def test_experiencia_com_id_inventado_e_descartada():
-    experiencias, _ = selecionar_experiencias(
+    experiencias, *_ = selecionar_experiencias(
         ANALISE, BASE, CONFIG, I18N, LLMFalsa(_saida(origem_extra="empresa-fantasma"))
     )
     assert "empresa-fantasma" not in [x.origem for x in experiencias]
 
 
 def test_saida_do_agente_passa_no_validador_de_regras():
-    experiencias, _ = selecionar_experiencias(
+    experiencias, *_ = selecionar_experiencias(
         ANALISE, BASE, CONFIG, I18N, LLMFalsa(_saida())
     )
     cv = Curriculo.model_validate_json(
@@ -154,24 +154,6 @@ def test_saida_do_agente_passa_no_validador_de_regras():
     cv.experiencias = experiencias
     resultado = validar_regras(cv, BASE, I18N, CONFIG)
     assert resultado.aprovado, resultado.bloqueios
-
-
-# ---------- Grafo ----------
-
-
-def test_grafo_roda_analisador_e_experiencia():
-    llms = {"analisador": LLMFalsa(ANALISE), "experiencia": LLMFalsa(_saida())}
-    estado = construir_grafo(BASE, CONFIG, I18N, llms).invoke({"texto_vaga": VAGA})
-    assert estado["analise"].headline == "Engenheira de IA"
-    assert len(estado["experiencias"]) == 2
-
-
-def test_grafo_pula_analisador_com_analise_em_cache():
-    analisador = LLMFalsa(ANALISE)
-    llms = {"analisador": analisador, "experiencia": LLMFalsa(_saida())}
-    grafo = construir_grafo(BASE, CONFIG, I18N, llms)
-    grafo.invoke({"texto_vaga": VAGA, "analise": ANALISE})
-    assert analisador.chamadas == []
 
 
 # ---------- Cache ----------
@@ -189,3 +171,39 @@ def test_cache_ignorado_se_headline_saiu_da_lista(tmp_path):
     salvar_analise("vaga", VAGA, ANALISE, tmp_path)
     perfil = BASE.perfil.model_copy(update={"headlines": ["Cloud Engineer"]})
     assert ler_analise("vaga", VAGA, perfil, tmp_path) is None
+
+
+# ---------- Motivos de omissão ----------
+
+
+def _omissoes(saida: SaidaExperiencia, config=CONFIG) -> dict[str, str]:
+    return selecionar_experiencias(ANALISE, BASE, config, I18N, LLMFalsa(saida))[2]
+
+
+def test_motivo_nota_abaixo_do_corte():
+    motivo = _omissoes(_saida(nota_beta=2))["empresa-beta"]
+    assert motivo == f"nota abaixo do corte ({CONFIG.limites.experiencias.nota_corte})"
+
+
+def test_motivo_llm_nao_gerou_bullets_apesar_da_nota():
+    saida = _saida(nota_beta=8)
+    saida.experiencias = [x for x in saida.experiencias if x.origem != "empresa-beta"]
+    assert "não gerou bullets" in _omissoes(saida)["empresa-beta"]
+
+
+def test_motivo_llm_nao_avaliou():
+    saida = _saida()
+    saida.avaliacoes = [a for a in saida.avaliacoes if a.origem != "empresa-beta"]
+    assert "não avaliou" in _omissoes(saida)["empresa-beta"]
+
+
+def test_motivo_acima_do_limite():
+    lim = CONFIG.limites
+    config = CONFIG.model_copy(
+        update={
+            "limites": lim.model_copy(
+                update={"experiencias": lim.experiencias.model_copy(update={"max": 1})}
+            )
+        }
+    )
+    assert "acima do limite" in _omissoes(_saida(nota_beta=8), config)["empresa-beta"]

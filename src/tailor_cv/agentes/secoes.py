@@ -5,6 +5,7 @@ Mesmo padrão do agente de Experiência: a LLM escolhe, ordena ou escreve; os fa
 """
 
 import json
+import re
 
 from langchain_core.messages import HumanMessage, SystemMessage
 
@@ -113,6 +114,33 @@ def evidencias(
     return list(dict.fromkeys(tags))
 
 
+def _pedida_na_vaga(habilidade: str, analise: AnaliseVaga) -> bool:
+    """'AWS Bedrock' casa com 'AWS (Bedrock, ECS ou Lambda)': todas as palavras da
+    habilidade aparecem num mesmo item da vaga."""
+    palavras = set(re.findall(r"\w+", habilidade.lower()))
+    itens = [
+        *analise.requisitos_obrigatorios,
+        *analise.requisitos_desejaveis,
+        *analise.palavras_chave,
+    ]
+    return any(palavras <= set(re.findall(r"\w+", item.lower())) for item in itens)
+
+
+def tecnicas_permitidas(
+    analise: AnaliseVaga,
+    experiencias: list[Experiencia],
+    cursos: list[Curso],
+    base: BaseDados,
+) -> list[str]:
+    """Técnicas com evidência no currículo ou pedidas na vaga, na ordem do arquivo."""
+    comprovadas = {t.lower() for t in evidencias(experiencias, cursos, base)}
+    return [
+        t
+        for t in base.habilidades.technical
+        if t.lower() in comprovadas or _pedida_na_vaga(t, analise)
+    ]
+
+
 def selecionar_habilidades(
     analise: AnaliseVaga,
     experiencias: list[Experiencia],
@@ -121,7 +149,9 @@ def selecionar_habilidades(
     config: Config,
     llm: ModeloEstruturado,
 ) -> list[Habilidade]:
-    tecnicas = base.habilidades.technical
+    # a LLM só vê as técnicas permitidas; o filtro abaixo garante a regra mesmo
+    # que ela devolva outra
+    tecnicas = tecnicas_permitidas(analise, experiencias, cursos, base)
     comportamentais = base.habilidades.behavioral
     if not tecnicas and not comportamentais:
         return []
@@ -145,7 +175,7 @@ def selecionar_habilidades(
             escolhidas[h.origem] = Habilidade(origem=h.origem, texto=h.origem)
         elif h.origem in comportamentais and h.texto.strip():
             escolhidas[h.origem] = Habilidade(origem=h.origem, texto=h.texto.strip())
-        # qualquer outro item é inventado e fica de fora
+        # qualquer outro item é inventado ou sem evidência e fica de fora
 
     # técnicas primeiro, mantendo a ordem de relevância dentro de cada grupo
     lista = sorted(escolhidas.values(), key=lambda h: h.origem not in tecnicas)
@@ -158,18 +188,22 @@ def selecionar_habilidades(
 def escrever_resumo(
     analise: AnaliseVaga,
     experiencias: list[Experiencia],
-    habilidades: list[Habilidade],
+    cursos: list[Curso],
     formacao: list[Formacao],
+    base: BaseDados,
     config: Config,
     llm: ModeloEstruturado,
 ) -> str:
+    """Roda em paralelo com Habilidades: recebe as comportamentais da base, e não as
+    escolhidas, para não precisar esperar aquele agente."""
     conteudo = {
         "experiencias": [
             {"cargo": x.cargo, "bullets": [b.texto for b in x.bullets]}
             for x in experiencias
         ],
-        "habilidades": [h.texto for h in habilidades],
+        "cursos": [c.nome for c in cursos],
         "formacao": [f.curso for f in formacao],
+        "qualidades_comportamentais": base.habilidades.behavioral,
     }
     saida = _chamar(
         llm,

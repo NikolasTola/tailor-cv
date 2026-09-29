@@ -3,9 +3,9 @@
 # Modelo de cada agente, no formato "provedor:modelo".
 # Confira os nomes atuais no Google AI Studio e no console do Groq.
 modelos:
-  analisador:  google_genai:gemini-3.8-flash
-  experiencia: google_genai:gemini-3.8-flash
-  resumo:      google_genai:gemini-3.8-flash
+  analisador:  groq:openai/gpt-oss-120b
+  experiencia: groq:openai/gpt-oss-120b
+  resumo:      google_genai:gemini-3.5-flash-lite
   formacao:    google_genai:gemini-3.5-flash-lite
   cursos:      google_genai:gemini-3.5-flash-lite
   habilidades: google_genai:gemini-3.5-flash-lite
@@ -33,3 +33,5 @@ palavras_proibidas:
   - sinergia
   - fora da caixa
   - vestir a camisa
+  - sólida
+  - sólido

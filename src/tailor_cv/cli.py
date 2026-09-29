@@ -1,28 +1,41 @@
-import json
 from datetime import datetime
 from pathlib import Path
-from typing import Annotated, NoReturn
+from typing import Annotated, Any, NoReturn
 
 import typer
 from dotenv import load_dotenv
 from pydantic import ValidationError
+from rich.console import Console
+from rich.live import Live
 
 from tailor_cv.agentes import ErroDeRegra
 from tailor_cv.cache import ler_analise, salvar_analise
 from tailor_cv.carregadores import ErroDeOrigem, carregar_base, carregar_i18n
 from tailor_cv.config import carregar_config
 from tailor_cv.grafo import construir_grafo
-from tailor_cv.llm import criar_llm
+from tailor_cv.llm import criar_llm, descrever_erro
+from tailor_cv.painel import Painel
+from tailor_cv.relatorio import gerar_relatorio
 from tailor_cv.render import gerar_pdf
 from tailor_cv.schemas import Curriculo
 from tailor_cv.validacao import validar_regras
 
 app = typer.Typer(help="TailorCV: currículo sob medida para cada vaga.")
+console = Console()
 
 VagaOpt = Annotated[Path, typer.Option("--vaga", help="Arquivo .txt da vaga")]
 DadosOpt = Annotated[
     Path, typer.Option("--dados", help="Pasta da base de dados pessoal")
 ]
+PASTA_CURRICULOS = Path("curriculos")
+AGENTES_LLM = (
+    "analisador",
+    "experiencia",
+    "formacao",
+    "cursos",
+    "habilidades",
+    "resumo",
+)
 
 
 def _erro(mensagem: str) -> NoReturn:
@@ -42,45 +55,53 @@ def _ler_curriculo(arquivo: Path) -> Curriculo:
         _erro(f"{arquivo} não segue o formato do currículo:\n" + "\n".join(linhas))
 
 
-@app.command("json")
-def gerar_json(vaga: VagaOpt, dados: DadosOpt = Path("dados")) -> None:
-    """Roda os agentes e gera curriculos/curriculo.<nome_vaga>.json.
+def _carregar_tudo(dados: Path) -> tuple[Any, Any, Any]:
+    try:
+        return carregar_base(dados), carregar_i18n(), carregar_config()
+    except ErroDeOrigem as exc:
+        _erro(f"Problema ao carregar a base ou a configuração:\n  {exc}")
 
-    Etapa 3: roda só o Analisador e a Experiência e salva os resultados parciais.
-    """
+
+def _executar_json(vaga: Path, dados: Path) -> Path:
+    """Roda o grafo completo e devolve o caminho do curriculo.<nome_vaga>.json."""
     load_dotenv()
     if not vaga.is_file():
         _erro(f"Arquivo da vaga não encontrado: {vaga}")
     texto_vaga = vaga.read_text(encoding="utf-8")
     nome_vaga = vaga.stem
-    try:
-        base = carregar_base(dados)
-        i18n = carregar_i18n()
-        config = carregar_config()
-    except ErroDeOrigem as exc:
-        _erro(f"Problema ao carregar a base ou a configuração:\n  {exc}")
+    base, i18n, config = _carregar_tudo(dados)
 
     analise = ler_analise(nome_vaga, texto_vaga, base.perfil)
-    typer.echo("Análise da vaga: " + ("em cache" if analise else "chamando a LLM..."))
+    entrada: dict[str, Any] = {"texto_vaga": texto_vaga}
+    if analise:
+        entrada["analise"] = analise
+
+    painel = Painel()
+    estado: dict[str, Any] = dict(entrada)
     try:
-        llms = {
-            "analisador": criar_llm(config.modelos.analisador),
-            "experiencia": criar_llm(config.modelos.experiencia),
-        }
+        # um modelo por agente, como definido no config.yaml
+        llms = {nome: criar_llm(getattr(config.modelos, nome)) for nome in AGENTES_LLM}
         grafo = construir_grafo(base, config, i18n, llms)
-        entrada = {"texto_vaga": texto_vaga} | ({"analise": analise} if analise else {})
-        estado = grafo.invoke(entrada)
+        with Live(painel.tabela(), console=console, refresh_per_second=8) as ao_vivo:
+            for modo, dado in grafo.stream(entrada, stream_mode=["custom", "updates"]):
+                if modo == "custom":
+                    painel.atualizar(dado)
+                    ao_vivo.update(painel.tabela())
+                else:
+                    for atualizacao in dado.values():
+                        estado.update(atualizacao or {})
+        console.print()
     except ErroDeRegra as exc:
         _erro(f"Um agente violou uma regra: {exc}")
+    except ValidationError as exc:
+        _erro(f"Não foi possível montar o currículo: {exc}")
     except Exception as exc:  # noqa: BLE001 — erros de provedor variam: chave, cota, modelo
-        _erro(
-            f"Falha ao chamar a LLM: {exc}\n"
-            "Confira as chaves no .env e os nomes dos modelos no config.yaml."
-        )
+        _erro(descrever_erro(exc))
 
     if analise is None:
         salvar_analise(nome_vaga, texto_vaga, estado["analise"])
 
+    # registro da execução
     pasta = (
         Path("execucoes") / f"{datetime.now().astimezone():%Y-%m-%d_%H%M%S}_{nome_vaga}"
     )
@@ -88,24 +109,64 @@ def gerar_json(vaga: VagaOpt, dados: DadosOpt = Path("dados")) -> None:
     (pasta / "analise_vaga.json").write_text(
         estado["analise"].model_dump_json(indent=2), encoding="utf-8"
     )
-    parcial = {
-        "avaliacoes": [a.model_dump() for a in estado["avaliacoes"]],
-        "experiencias": [x.model_dump() for x in estado["experiencias"]],
-    }
-    (pasta / "experiencias.json").write_text(
-        json.dumps(parcial, ensure_ascii=False, indent=2), encoding="utf-8"
+    (pasta / "curriculo.json").write_text(
+        estado["curriculo"].model_dump_json(indent=2), encoding="utf-8"
+    )
+    validacao = estado["validacao"]
+    incluidas = {x.origem for x in estado["experiencias"]}
+    (pasta / "relatorio.md").write_text(
+        gerar_relatorio(
+            nome_vaga,
+            estado["analise"],
+            estado["avaliacoes"],
+            incluidas,
+            estado["omissoes"],
+            validacao,
+            painel,
+        ),
+        encoding="utf-8",
     )
 
-    a = estado["analise"]
-    typer.secho(
-        f"\nVaga: {a.cargo} ({a.senioridade}) | headline: {a.headline}", bold=True
-    )
-    typer.echo("\nNotas de relevância:")
-    incluidas = {x.origem for x in estado["experiencias"]}
-    for av in sorted(estado["avaliacoes"], key=lambda av: -av.nota):
-        marca = "incluída" if av.origem in incluidas else "omitida "
-        typer.echo(f"  {av.nota:>2}  {marca}  {av.origem}: {av.justificativa}")
-    typer.secho(f"\nResultados parciais salvos em {pasta}", fg=typer.colors.GREEN)
+    for id_, motivo in estado["omissoes"].items():
+        if "não gerou" in motivo or "não avaliou" in motivo:
+            typer.secho(
+                f"ALERTA   experiência {id_} omitida: {motivo}", fg=typer.colors.YELLOW
+            )
+    for alerta in validacao.alertas:
+        typer.secho(f"ALERTA   {alerta}", fg=typer.colors.YELLOW)
+    for bloqueio in validacao.bloqueios:
+        typer.secho(f"BLOQUEIO {bloqueio}", fg=typer.colors.RED)
+    if not validacao.aprovado:
+        _erro(
+            f"O currículo não passou nas regras ({len(validacao.bloqueios)} bloqueio(s)). "
+            f"Detalhes em {pasta / 'relatorio.md'}"
+        )
+
+    PASTA_CURRICULOS.mkdir(exist_ok=True)
+    destino = PASTA_CURRICULOS / f"curriculo.{nome_vaga}.json"
+    destino.write_text(estado["curriculo"].model_dump_json(indent=2), encoding="utf-8")
+    typer.secho(f"Currículo gerado: {destino}", fg=typer.colors.GREEN)
+    typer.echo(f"Relatório da execução: {pasta / 'relatorio.md'}")
+    return destino
+
+
+def _executar_pdf(arquivo: Path, paginas_max: int | None = None) -> Path:
+    cv = _ler_curriculo(arquivo)
+    destino = arquivo.with_suffix(".pdf")
+    paginas = gerar_pdf(cv, destino)
+    typer.secho(f"PDF gerado: {destino} ({paginas} página(s))", fg=typer.colors.GREEN)
+    if paginas_max is not None and paginas > paginas_max:
+        typer.secho(
+            f"ALERTA   o PDF tem {paginas} páginas; o limite é {paginas_max}.",
+            fg=typer.colors.YELLOW,
+        )
+    return destino
+
+
+@app.command("json")
+def gerar_json(vaga: VagaOpt, dados: DadosOpt = Path("dados")) -> None:
+    """Roda os agentes e gera curriculos/curriculo.<nome_vaga>.json."""
+    _executar_json(vaga, dados)
 
 
 @app.command("pdf")
@@ -113,17 +174,14 @@ def gerar_pdf_cmd(
     arquivo: Annotated[Path, typer.Argument(help="Arquivo curriculo.<nome_vaga>.json")],
 ) -> None:
     """Gera o PDF a partir de um curriculo.<nome_vaga>.json."""
-    cv = _ler_curriculo(arquivo)
-
-    destino = arquivo.with_suffix(".pdf")
-    paginas = gerar_pdf(cv, destino)
-    typer.secho(f"PDF gerado: {destino} ({paginas} página(s))", fg=typer.colors.GREEN)
+    _executar_pdf(arquivo)
 
 
 @app.command("gerar")
-def gerar(vaga: VagaOpt) -> None:
+def gerar(vaga: VagaOpt, dados: DadosOpt = Path("dados")) -> None:
     """Gera o JSON e depois o PDF."""
-    typer.echo(f"[em construção] json + pdf para {vaga.stem}")
+    arquivo_json = _executar_json(vaga, dados)
+    _executar_pdf(arquivo_json, carregar_config().limites.paginas_max)
 
 
 @app.command("checar")
@@ -139,12 +197,14 @@ def checar(dados: DadosOpt = Path("dados")) -> None:
     hab = base.habilidades
     typer.secho(f"Base de dados OK: {dados}", fg=typer.colors.GREEN)
     typer.echo(
-        f"  Experiências: {len(base.experiencias)} ({bullets} bullets, {com_metrica} com métrica)"
+        f"  Experiências: {len(base.experiencias)} ({bullets} bullets, "
+        f"{com_metrica} com métrica)"
     )
     typer.echo(f"  Formação:     {len(base.formacao)}")
     typer.echo(f"  Cursos:       {len(base.cursos)}")
     typer.echo(
-        f"  Habilidades:  {len(hab.technical)} técnicas, {len(hab.behavioral)} comportamentais"
+        f"  Habilidades:  {len(hab.technical)} técnicas, "
+        f"{len(hab.behavioral)} comportamentais"
     )
     typer.echo(f"  Idiomas:      {len(base.idiomas)}")
     typer.echo(f"  Headlines:    {', '.join(base.perfil.headlines)}")
@@ -157,13 +217,7 @@ def validar(
 ) -> None:
     """Confere um currículo contra a base de dados com as regras determinísticas."""
     cv = _ler_curriculo(arquivo)
-    try:
-        base = carregar_base(dados)
-        i18n = carregar_i18n()
-        config = carregar_config()
-    except ErroDeOrigem as exc:
-        _erro(f"Problema ao carregar a base ou a configuração:\n  {exc}")
-
+    base, i18n, config = _carregar_tudo(dados)
     resultado = validar_regras(cv, base, i18n, config)
     for alerta in resultado.alertas:
         typer.secho(f"ALERTA   {alerta}", fg=typer.colors.YELLOW)
