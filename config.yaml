@@ -16,7 +16,7 @@ limites:
   resumo_palavras_max: 80
   bullet_palavras_max: 25
   experiencias:
-    nota_corte: 4          # abaixo disso, a experiência é omitida
+    nota_corte: 5         # abaixo disso, a experiência é omitida
     nota_relevante: 7      # a partir disso, a experiência ganha mais bullets
     max: 5
     bullets_relevante: [3, 5]

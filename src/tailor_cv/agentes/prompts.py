@@ -52,4 +52,12 @@ nem "Desenvolveu".
 consolidados também (deploy, pipeline, dashboard).
 - Sem adjetivos vazios (apaixonada, proativa, dinâmica).
 - Traduza o cargo quando houver tradução usual no mercado brasileiro; senão, mantenha \
-o original."""
+o original.
+
+- Preserve o que cada número mede: "30% reduction in monthly Bedrock spend" vira \
+"redução de 30% no gasto mensal com Bedrock", nunca "redução de 30% dos gastos".
+- Cite só as tecnologias mais relevantes para a vaga; não é preciso listar todas as \
+tags do bullet. Evite repetições como "na AWS usando AWS Bedrock".
+- Quando a vaga usa uma expressão equivalente ao que o bullet descreve (ex.: \
+"infraestrutura como código" para provisionamento com AWS CDK), prefira a da vaga."""
+
