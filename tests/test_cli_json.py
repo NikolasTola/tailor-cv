@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 from llm_falsa import LLMFalsa
 from test_agentes_llm import ANALISE, _saida
-from test_agentes_secoes import CURSOS, FORMACAO, HABILIDADES, RESUMO
+from test_agentes_secoes import CURSOS, FORMACAO, HABILIDADES, PROJETOS, RESUMO
 from typer.testing import CliRunner
 
 from tailor_cv import cli
@@ -29,6 +29,7 @@ def projeto(tmp_path, monkeypatch) -> tuple[Path, LLMFalsa]:
         HABILIDADES,
         RESUMO,
         SaidaFidelidade(avaliacoes=[]),
+        PROJETOS,
     )
     monkeypatch.setattr(cli, "criar_llm", lambda _modelo: llm)
     return tmp_path, llm
@@ -49,7 +50,7 @@ def test_json_gera_curriculo_relatorio_e_usa_cache(projeto):
 
     chamadas = len(llm.chamadas)
     CliRunner().invoke(cli.app, ["json", *VAGA])
-    assert len(llm.chamadas) == chamadas + 6  # todos menos o Analisador (cache)
+    assert len(llm.chamadas) == chamadas + 7  # todos menos o Analisador (cache)
 
 
 def test_gerar_cria_json_e_pdf(projeto):

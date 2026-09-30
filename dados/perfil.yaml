@@ -1,0 +1,15 @@
+# Dados pessoais. Nunca são enviados a nenhuma LLM.
+name: Nikolas Victor Mota
+city: Belo Horizonte – MG
+phone: "(31) 98922-5689"
+email: nikolas.victor2@gmail.com
+linkedin: linkedin.com/in/nikolas-victor-mota-ba8696205
+github: github.com/NikolasTola
+
+# Títulos que o Analisador pode escolher como subtítulo, conforme a vaga.
+# Em português, no masculino: o cargo das experiências segue o gênero do headline.
+headlines:
+  - Engenheiro de IA
+  - Engenheiro de Machine Learning
+  - Engenheiro de Dados
+  - Cientista de Dados

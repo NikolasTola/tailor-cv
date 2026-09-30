@@ -1,8 +1,8 @@
 """Orquestração com LangGraph: o grafo completo, em ondas, com correção automática.
 
 Onda 1  analisador, dados_pessoais, idiomas, formacao   (em paralelo)
-Onda 2  titulo_e_nome, experiencia, cursos              (esperam o analisador)
-Onda 3  habilidades, resumo                             (esperam experiência e cursos)
+Onda 2  titulo_e_nome, experiencia, cursos, projetos    (esperam o analisador)
+Onda 3  habilidades, resumo                             (esperam a onda 2)
 Onda 4  montar, validar_regras, validar_fidelidade
 
 A fidelidade (LLM) só roda se as regras (grátis) passarem. Se alguma validação
@@ -31,6 +31,7 @@ from tailor_cv.agentes.secoes import (
     gerar_formacao,
     selecionar_cursos,
     selecionar_habilidades,
+    selecionar_projetos,
 )
 from tailor_cv.carregadores import I18n
 from tailor_cv.config import Config
@@ -44,6 +45,7 @@ from tailor_cv.schemas.curriculo import (
     Formacao,
     Habilidade,
     Idioma,
+    Projeto,
 )
 from tailor_cv.validacao import (
     Problema,
@@ -61,6 +63,7 @@ NOS: list[tuple[str, int]] = [
     ("titulo_e_nome", 2),
     ("experiencia", 2),
     ("cursos", 2),
+    ("projetos", 2),
     ("habilidades", 3),
     ("resumo", 3),
     ("montar", 4),
@@ -75,11 +78,12 @@ NOS: list[tuple[str, int]] = [
 DEPENDENTES: dict[str, set[str]] = {
     "experiencia": {"habilidades", "resumo"},
     "cursos": {"habilidades", "resumo"},
+    "projetos": {"habilidades", "resumo"},
     "formacao": {"resumo"},
     "habilidades": set(),
     "resumo": set(),
 }
-PRIMEIRA_LEVA = ("experiencia", "cursos", "formacao")
+PRIMEIRA_LEVA = ("experiencia", "cursos", "formacao", "projetos")
 SEGUNDA_LEVA = ("habilidades", "resumo")
 
 
@@ -94,6 +98,7 @@ class Estado(TypedDict, total=False):
     avaliacoes: list[AvaliacaoExperiencia]
     omissoes: dict[str, str]
     cursos: list[Curso]
+    projetos: list[Projeto]
     habilidades: list[Habilidade]
     resumo: str
     curriculo: Curriculo
@@ -161,6 +166,13 @@ def construir_grafo(
             )
         }
 
+    def projetos(e: Estado, correcoes: list[str] | None = None) -> Estado:
+        return {
+            "projetos": selecionar_projetos(
+                e["analise"], base, config, llms["projetos"], correcoes
+            )
+        }
+
     def formacao(e: Estado, correcoes: list[str] | None = None) -> Estado:
         return {"formacao": gerar_formacao(base, llms["formacao"], correcoes)}
 
@@ -174,6 +186,7 @@ def construir_grafo(
                 config,
                 llms["habilidades"],
                 correcoes,
+                projetos=e["projetos"],
             )
         }
 
@@ -188,6 +201,7 @@ def construir_grafo(
                 config,
                 llms["resumo"],
                 correcoes,
+                projetos=e["projetos"],
             )
         }
 
@@ -195,6 +209,7 @@ def construir_grafo(
         "experiencia": experiencia,
         "cursos": cursos,
         "formacao": formacao,
+        "projetos": projetos,
         "habilidades": habilidades,
         "resumo": resumo,
     }
@@ -212,6 +227,7 @@ def construir_grafo(
             cabecalho=Cabecalho(**e["titulo_nome"], **e["dados"]),
             resumo=e["resumo"],
             experiencias=e["experiencias"],
+            projetos=e["projetos"],
             formacao=e["formacao"],
             cursos=e["cursos"],
             habilidades=e["habilidades"],
@@ -287,6 +303,7 @@ def construir_grafo(
         },
         "experiencia": experiencia,
         "cursos": cursos,
+        "projetos": projetos,
         "habilidades": habilidades,
         "resumo": resumo,
         "montar": montar,
@@ -316,10 +333,10 @@ def construir_grafo(
 
     for nome in ("analisador", "dados_pessoais", "idiomas", "formacao"):
         grafo.add_edge(START, nome)
-    for nome in ("titulo_e_nome", "experiencia", "cursos"):
+    for nome in ("titulo_e_nome", "experiencia", "cursos", "projetos"):
         grafo.add_edge("analisador", nome)
     for nome in ("habilidades", "resumo"):
-        grafo.add_edge(["experiencia", "cursos", "formacao"], nome)
+        grafo.add_edge(["experiencia", "cursos", "formacao", "projetos"], nome)
     grafo.add_edge(
         ["titulo_e_nome", "dados_pessoais", "idiomas", "habilidades", "resumo"],
         "montar",

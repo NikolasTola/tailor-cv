@@ -1,3 +1,5 @@
+"""Script PDF: Curriculo -> PDF com ReportLab. Determinístico, sem LLM."""
+
 from pathlib import Path
 from xml.sax.saxutils import escape
 
@@ -17,6 +19,7 @@ from reportlab.platypus import (
 )
 
 from tailor_cv.schemas import Curriculo
+from tailor_cv.schemas.curriculo import Bullet
 
 MESES = [
     "Jan",
@@ -76,6 +79,16 @@ def _secao(titulo: str) -> Flowable:
     )
 
 
+def _bullets(bullets: list[Bullet]) -> Flowable:
+    return ListFlowable(
+        [ListItem(Paragraph(_e(b.texto), LINHA_ITEM), leftIndent=12) for b in bullets],
+        bulletType="bullet",
+        start="•",
+        bulletFontName="Helvetica",
+        leftIndent=12,
+    )
+
+
 def _montar(cv: Curriculo) -> list[Flowable]:
     c = cv.cabecalho
     story: list[Flowable] = [
@@ -95,18 +108,21 @@ def _montar(cv: Curriculo) -> list[Flowable]:
         titulo = (
             f"{x.empresa} – {x.cargo}{modo} | {data_pt(x.inicio)} – {data_pt(x.fim)}"
         )
-        bullets = ListFlowable(
-            [
-                ListItem(Paragraph(_e(b.texto), LINHA_ITEM), leftIndent=12)
-                for b in x.bullets
-            ],
-            bulletType="bullet",
-            start="•",
-            bulletFontName="Helvetica",
-            leftIndent=12,
-        )
         # uma experiência nunca é partida entre duas páginas
-        story.append(KeepTogether([Paragraph(_e(titulo), ITEM_TITULO), bullets]))
+        story.append(
+            KeepTogether([Paragraph(_e(titulo), ITEM_TITULO), _bullets(x.bullets)])
+        )
+
+    if cv.projetos:
+        story.append(_secao("Projetos"))
+        for p in cv.projetos:
+            titulo = p.nome + (f" ({p.ano})" if p.ano else "")
+            if p.reconhecimento:
+                titulo += f" – {p.reconhecimento}"
+            itens = [Paragraph(_e(titulo), ITEM_TITULO), _bullets(p.bullets)]
+            if p.url:
+                itens.append(Paragraph(_e(p.url), LINHA_ITEM))
+            story.append(KeepTogether(itens))
 
     if cv.formacao:
         story.append(_secao("Formação Acadêmica"))

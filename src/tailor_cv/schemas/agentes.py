@@ -52,6 +52,22 @@ class SaidaExperiencia(BaseModel):
     )
 
 
+class ProjetoGerado(BaseModel):
+    origem: str = Field(description="ID do projeto")
+    nome: str = Field(description="Nome do projeto em português")
+    reconhecimento: str = Field(
+        default="",
+        description="Prêmio ou reconhecimento traduzido; vazio se a origem não tiver",
+    )
+    bullets: list[BulletGerado]
+
+
+class SaidaProjetos(BaseModel):
+    projetos: list[ProjetoGerado] = Field(
+        description="Somente os projetos relevantes, do mais relevante para o menos"
+    )
+
+
 class FormacaoGerada(BaseModel):
     origem: str = Field(description="ID da formação")
     curso: str = Field(description="Nome do curso em português do Brasil")

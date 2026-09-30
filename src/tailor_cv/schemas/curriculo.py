@@ -1,3 +1,9 @@
+"""Contrato do curriculo.<nome_vaga>.json.
+
+É a fronteira entre os agentes e o Script PDF: os agentes produzem este modelo,
+o renderizador só consome este modelo.
+"""
+
 from typing import Annotated, Literal
 
 from pydantic import (
@@ -57,6 +63,15 @@ class Experiencia(Base):
         return self
 
 
+class Projeto(Base):
+    origem: Texto = Field(description="ID do arquivo de projeto de origem")
+    nome: Texto
+    ano: Texto | None = None
+    url: Texto | None = None
+    reconhecimento: Texto | None = None
+    bullets: list[Bullet] = Field(min_length=1)
+
+
 class Formacao(Base):
     origem: Texto
     curso: Texto
@@ -85,6 +100,7 @@ class Curriculo(Base):
     cabecalho: Cabecalho
     resumo: Texto
     experiencias: list[Experiencia] = Field(min_length=1)
+    projetos: list[Projeto] = []
     formacao: list[Formacao] = []
     cursos: list[Curso] = []
     habilidades: list[Habilidade] = []

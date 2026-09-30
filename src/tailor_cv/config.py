@@ -20,6 +20,7 @@ class Modelos(Base):
     cursos: str
     habilidades: str
     validador: str
+    projetos: str | None = None  # se ausente, usa o mesmo modelo de Cursos
 
 
 class LimitesExperiencias(Base):
@@ -37,6 +38,7 @@ class Limites(Base):
     bullet_palavras_max: int = Field(ge=1)
     experiencias: LimitesExperiencias
     cursos_max: int = Field(ge=0)
+    projetos_max: int = Field(default=3, ge=0)
     habilidades_max: int = Field(ge=0)
 
 

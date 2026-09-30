@@ -44,6 +44,35 @@ def _itens(cv: Curriculo, base: BaseDados) -> dict[str, dict]:
                 ],
             }
 
+    projetos = {p.id: p for p in base.projetos}
+    for p in cv.projetos:
+        origem_p = projetos.get(p.origem)
+        if origem_p is None:
+            continue
+        itens[f"projeto:{p.origem}:nome"] = {
+            "agente": "projetos",
+            "texto_pt": p.nome,
+            "origem": origem_p.name,
+        }
+        if p.reconhecimento and origem_p.award:
+            itens[f"projeto:{p.origem}:reconhecimento"] = {
+                "agente": "projetos",
+                "texto_pt": p.reconhecimento,
+                "origem": origem_p.award,
+            }
+        conquistas_p = {a.id: a for a in origem_p.achievements}
+        for i, b in enumerate(p.bullets):
+            fontes = [conquistas_p[o] for o in b.origem if o in conquistas_p]
+            itens[f"projeto:{p.origem}:bullet:{i}"] = {
+                "agente": "projetos",
+                "texto_pt": b.texto,
+                "origem": [
+                    a.model_dump(include={"text", "tech", "metric"}, exclude_none=True)
+                    for a in fontes
+                ]
+                + [{"project_tech": origem_p.tech}],
+            }
+
     formacoes = {f.id: f for f in base.formacao}
     for f in cv.formacao:
         if f.origem in formacoes:
@@ -68,6 +97,10 @@ def _itens(cv: Curriculo, base: BaseDados) -> dict[str, dict]:
         "origem": {
             "cargos": [x.cargo for x in cv.experiencias],
             "bullets": [b.texto for x in cv.experiencias for b in x.bullets],
+            "projetos": [
+                {"nome": p.nome, "bullets": [b.texto for b in p.bullets]}
+                for p in cv.projetos
+            ],
             "cursos": [c.nome for c in cv.cursos],
             "formacao": [f.curso for f in cv.formacao],
             "habilidades": [h.texto for h in cv.habilidades],

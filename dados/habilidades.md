@@ -1,0 +1,75 @@
+## Technical
+- Python
+- SQL
+- PL/SQL
+- NumPy
+- Pandas
+- Scikit-learn
+- LLMs
+- LangChain
+- RAG
+- AWS Bedrock
+- Claude
+- LangFuse
+- Chainlit
+- Copilot Studio
+- N8N
+- NLP
+- Classificação de Texto
+- Modelos Preditivos
+- MLOps
+- SageMaker
+- DataRobot
+- Data Mesh
+- Apache Spark
+- DBT
+- DataStage
+- OpenMetadata
+- ETL
+- Data Warehouse
+- Data Lake
+- Lakehouse
+- Snowflake
+- Oracle
+- PostgreSQL
+- DynamoDB
+- OpenSearch
+- Pipelines de Dados
+- AWS
+- AWS CDK
+- AWS CloudFormation
+- AWS S3
+- AWS Glue
+- AWS Athena
+- AWS Lambda
+- AWS ECS
+- AWS EC2
+- AWS API Gateway
+- AWS EventBridge
+- AWS SES
+- AWS IAM
+- AWS CodePipeline
+- AWS CodeBuild
+- AWS CodeCommit
+- AWS Cost Explorer
+- FinOps
+- Azure DevOps
+- Power BI
+- Streamlit
+- FastAPI
+- NestJS
+- Next.js
+- ReactJS
+- React Native
+- HTML
+- CSS
+- JavaScript
+- Java
+- .NET
+
+## Behavioral
+- Committed
+- Innovative
+- Proactive
+- Communicative
+- Patient

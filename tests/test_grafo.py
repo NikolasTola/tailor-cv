@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 from llm_falsa import LLMFalsa
 from test_agentes_llm import ANALISE, _saida
-from test_agentes_secoes import CURSOS, FORMACAO, HABILIDADES, RESUMO
+from test_agentes_secoes import CURSOS, FORMACAO, HABILIDADES, PROJETOS, RESUMO
 
 from tailor_cv.carregadores import carregar_base, carregar_i18n
 from tailor_cv.config import carregar_config
@@ -26,13 +26,16 @@ AGENTES = (
     "habilidades",
     "resumo",
     "validador",
+    "projetos",
 )
 FIEL = SaidaFidelidade(avaliacoes=[])
 
 
 def _llm() -> LLMFalsa:
     # uma única LLM falsa responde a todos: ela escolhe a resposta pelo schema
-    return LLMFalsa(ANALISE, _saida(), FORMACAO, CURSOS, HABILIDADES, RESUMO, FIEL)
+    return LLMFalsa(
+        ANALISE, _saida(), FORMACAO, CURSOS, HABILIDADES, RESUMO, FIEL, PROJETOS
+    )
 
 
 def _rodar(entrada: dict, llm: LLMFalsa | None = None) -> tuple[dict, list[dict]]:
@@ -108,7 +111,9 @@ class LLMLenta(LLMFalsa):
 
 
 def test_agentes_da_mesma_onda_rodam_em_paralelo():
-    llm = LLMLenta(ANALISE, _saida(), FORMACAO, CURSOS, HABILIDADES, RESUMO, FIEL)
+    llm = LLMLenta(
+        ANALISE, _saida(), FORMACAO, CURSOS, HABILIDADES, RESUMO, FIEL, PROJETOS
+    )
     _rodar({"texto_vaga": "vaga"}, llm)
     assert llm.pico >= 2
 

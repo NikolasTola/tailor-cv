@@ -64,6 +64,27 @@ Evite repetições como "na AWS usando AWS Bedrock".
 nem acrescente senioridade. Use o mesmo gênero gramatical do headline escolhido na \
 análise da vaga (ex.: "Engenheira de IA")."""
 
+PROJETOS = """Você é o agente de Projetos de um gerador de currículos.
+
+Você recebe a análise de uma vaga e os projetos da candidata ou candidato (acadêmicos \
+e pessoais), escritos em inglês. Escolha até {maximo} projetos relevantes para a vaga, \
+do mais relevante para o menos relevante, e escreva cada um em português do Brasil.
+
+Para cada projeto escolhido:
+- "nome": o nome traduzido para o português, quando houver tradução natural;
+- "reconhecimento": o prêmio traduzido, somente se a origem tiver "award"; senão, vazio;
+- de 1 a 2 bullets.
+
+Regras obrigatórias:
+- Não inclua projetos sem relação com a vaga: é melhor devolver menos, ou nenhum.
+- Use apenas fatos da origem. Nunca adicione tecnologia, número, escopo ou papel que \
+não estejam nela. Projeto em grupo continua sendo em grupo.
+- Em "origem" de cada bullet, informe o ID do bullet de origem.
+- Forma nominal: "Desenvolvimento de...", nunca "Desenvolvi".
+- No máximo {bullet_max} palavras por bullet.
+- Números exatamente como na origem, no formato brasileiro.
+- Nomes de tecnologias ficam em inglês. Cite as que a vaga pede."""
+
 FORMACAO = """Você é o agente de Formação de um gerador de currículos.
 
 Traduza para o português do Brasil o nome de cada formação acadêmica recebida, usando \
@@ -104,8 +125,8 @@ habilidades comportamentais são traduzidas para o português do Brasil \
 RESUMO = """Você é o agente de Resumo de um gerador de currículos.
 
 Escreva o resumo profissional da candidata em português do Brasil, a partir da análise \
-da vaga e do conteúdo já selecionado para o currículo (experiências, cursos e \
-formação) e da lista de qualidades comportamentais da candidata.
+da vaga e do conteúdo já selecionado para o currículo (experiências, projetos, \
+cursos e formação) e da lista de qualidades comportamentais.
 
 Regras obrigatórias:
 - De 2 a 4 frases, com no máximo {maximo} palavras no total.

@@ -18,9 +18,17 @@ from tailor_cv.schemas.agentes import (
     SaidaCursos,
     SaidaFormacao,
     SaidaHabilidades,
+    SaidaProjetos,
     SaidaResumo,
 )
-from tailor_cv.schemas.curriculo import Curso, Experiencia, Formacao, Habilidade
+from tailor_cv.schemas.curriculo import (
+    Bullet,
+    Curso,
+    Experiencia,
+    Formacao,
+    Habilidade,
+    Projeto,
+)
 
 
 def _json(dados: object) -> str:
@@ -105,13 +113,66 @@ def selecionar_cursos(
     ]
 
 
+# ---------- Projetos ----------
+
+
+def selecionar_projetos(
+    analise: AnaliseVaga,
+    base: BaseDados,
+    config: Config,
+    llm: ModeloEstruturado,
+    correcoes: list[str] | None = None,
+) -> list[Projeto]:
+    """Escolhe, ordena e escreve os projetos. Ano, link e existência do prêmio vêm
+    da origem: sem "award" na origem, nenhum reconhecimento entra."""
+    maximo = config.limites.projetos_max
+    if not base.projetos or maximo == 0:
+        return []
+    entrada = [p.model_dump(exclude_none=True) for p in base.projetos]
+    saida = _chamar(
+        llm,
+        SaidaProjetos,
+        prompts.PROJETOS.format(
+            maximo=maximo, bullet_max=config.limites.bullet_palavras_max
+        ),
+        f"Análise da vaga:\n{analise.model_dump_json(indent=1)}\n\n"
+        f"Projetos:\n{_json(entrada)}",
+        correcoes,
+    )
+    por_id = {p.id: p for p in base.projetos}
+    projetos: list[Projeto] = []
+    vistos: set[str] = set()
+    for gerado in saida.projetos:
+        origem = por_id.get(gerado.origem)
+        if origem is None or origem.id in vistos or not gerado.bullets:
+            continue  # ID inventado, repetido ou sem conteúdo
+        vistos.add(origem.id)
+        reconhecimento = gerado.reconhecimento.strip() if origem.award else ""
+        projetos.append(
+            Projeto(
+                origem=origem.id,
+                nome=gerado.nome.strip() or origem.name,
+                ano=str(origem.year) if origem.year else None,
+                url=origem.url,
+                reconhecimento=reconhecimento or None,
+                bullets=[
+                    Bullet(origem=b.origem, texto=b.texto) for b in gerado.bullets
+                ],
+            )
+        )
+    return projetos[:maximo]
+
+
 # ---------- Habilidades ----------
 
 
 def evidencias(
-    experiencias: list[Experiencia], cursos: list[Curso], base: BaseDados
+    experiencias: list[Experiencia],
+    cursos: list[Curso],
+    base: BaseDados,
+    projetos: list[Projeto] | None = None,
 ) -> list[str]:
-    """Tecnologias das experiências e cursos já selecionados (tags de origem)."""
+    """Tecnologias das experiências, cursos e projetos já selecionados."""
     conquistas = {a.id: a for x in base.experiencias for a in x.achievements}
     tags = [
         t
@@ -125,6 +186,20 @@ def evidencias(
     tags += [
         t for c in cursos if c.origem in cursos_base for t in cursos_base[c.origem].tech
     ]
+    projetos_base = {p.id: p for p in base.projetos}
+    for p in projetos or []:
+        origem = projetos_base.get(p.origem)
+        if origem is None:
+            continue
+        tags += origem.tech
+        conquistas_p = {a.id: a for a in origem.achievements}
+        tags += [
+            t
+            for b in p.bullets
+            for o in b.origem
+            if o in conquistas_p
+            for t in conquistas_p[o].tech
+        ]
     return list(dict.fromkeys(tags))
 
 
@@ -145,9 +220,10 @@ def tecnicas_permitidas(
     experiencias: list[Experiencia],
     cursos: list[Curso],
     base: BaseDados,
+    projetos: list[Projeto] | None = None,
 ) -> list[str]:
     """Técnicas com evidência no currículo ou pedidas na vaga, na ordem do arquivo."""
-    comprovadas = {t.lower() for t in evidencias(experiencias, cursos, base)}
+    comprovadas = {t.lower() for t in evidencias(experiencias, cursos, base, projetos)}
     return [
         t
         for t in base.habilidades.technical
@@ -163,10 +239,11 @@ def selecionar_habilidades(
     config: Config,
     llm: ModeloEstruturado,
     correcoes: list[str] | None = None,
+    projetos: list[Projeto] | None = None,
 ) -> list[Habilidade]:
     # a LLM só vê as técnicas permitidas; o filtro abaixo garante a regra mesmo
     # que ela devolva outra
-    tecnicas = tecnicas_permitidas(analise, experiencias, cursos, base)
+    tecnicas = tecnicas_permitidas(analise, experiencias, cursos, base, projetos)
     comportamentais = base.habilidades.behavioral
     if not tecnicas and not comportamentais:
         return []
@@ -178,7 +255,7 @@ def selecionar_habilidades(
         prompts.HABILIDADES.format(maximo=maximo),
         f"Análise da vaga:\n{analise.model_dump_json(indent=1)}\n\n"
         f"Habilidades da candidata:\n{_json(entrada)}\n\n"
-        f"Tecnologias já selecionadas:\n{_json(evidencias(experiencias, cursos, base))}",
+        f"Tecnologias já selecionadas:\n{_json(evidencias(experiencias, cursos, base, projetos))}",
         correcoes,
     )
 
@@ -210,6 +287,7 @@ def escrever_resumo(
     config: Config,
     llm: ModeloEstruturado,
     correcoes: list[str] | None = None,
+    projetos: list[Projeto] | None = None,
 ) -> str:
     """Roda em paralelo com Habilidades: recebe as comportamentais da base, e não as
     escolhidas, para não precisar esperar aquele agente."""
@@ -217,6 +295,10 @@ def escrever_resumo(
         "experiencias": [
             {"cargo": x.cargo, "bullets": [b.texto for b in x.bullets]}
             for x in experiencias
+        ],
+        "projetos": [
+            {"nome": p.nome, "bullets": [b.texto for b in p.bullets]}
+            for p in projetos or []
         ],
         "cursos": [c.nome for c in cursos],
         "formacao": [f.curso for f in formacao],

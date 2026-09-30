@@ -8,6 +8,7 @@ from tailor_cv.schemas.origem import (
     Habilidades,
     IdiomaOrigem,
     Perfil,
+    ProjetoOrigem,
 )
 
 __all__ = [
@@ -20,4 +21,5 @@ __all__ = [
     "Habilidades",
     "IdiomaOrigem",
     "Perfil",
+    "ProjetoOrigem",
 ]

@@ -1,3 +1,5 @@
+"""Schemas dos arquivos de origem (a base de dados pessoal, em inglês)."""
+
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
@@ -55,6 +57,26 @@ class ExperienciaOrigem(Base):
         return self
 
 
+class ProjetoOrigem(Base):
+    id: Slug
+    name: Texto
+    type: Literal["academic", "personal"] = "personal"
+    year: int | None = Field(default=None, ge=1950, le=2100)
+    url: Texto | None = None
+    award: Texto | None = None
+    tech: list[Texto] = []
+    context: Texto | None = None
+    achievements: list[Conquista] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def ids_de_bullet_unicos(self) -> "ProjetoOrigem":
+        ids = [a.id for a in self.achievements]
+        repetidos = sorted({i for i in ids if ids.count(i) > 1})
+        if repetidos:
+            raise ValueError(f"IDs de bullet repetidos: {', '.join(repetidos)}")
+        return self
+
+
 class FormacaoOrigem(Base):
     id: Slug
     degree: Texto
@@ -88,6 +110,7 @@ class IdiomaOrigem(Base):
 class BaseDados(Base):
     perfil: Perfil
     experiencias: list[ExperienciaOrigem] = Field(min_length=1)
+    projetos: list[ProjetoOrigem] = []
     formacao: list[FormacaoOrigem] = []
     cursos: list[CursoOrigem] = []
     habilidades: Habilidades
@@ -97,6 +120,7 @@ class BaseDados(Base):
     def ids_unicos(self) -> "BaseDados":
         for nome, itens in (
             ("experiencias", self.experiencias),
+            ("projetos", self.projetos),
             ("formacao", self.formacao),
             ("cursos", self.cursos),
         ):

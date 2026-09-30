@@ -11,16 +11,20 @@ from tailor_cv.agentes.secoes import (
     gerar_formacao,
     selecionar_cursos,
     selecionar_habilidades,
+    selecionar_projetos,
 )
 from tailor_cv.carregadores import carregar_base, carregar_i18n
 from tailor_cv.config import carregar_config
 from tailor_cv.schemas import Curriculo
 from tailor_cv.schemas.agentes import (
+    BulletGerado,
     FormacaoGerada,
     HabilidadeEscolhida,
+    ProjetoGerado,
     SaidaCursos,
     SaidaFormacao,
     SaidaHabilidades,
+    SaidaProjetos,
     SaidaResumo,
 )
 from tailor_cv.schemas.curriculo import Cabecalho
@@ -42,6 +46,22 @@ HABILIDADES = SaidaHabilidades(
         HabilidadeEscolhida(origem="Python", texto="Python"),
         HabilidadeEscolhida(origem="AWS Bedrock", texto="AWS Bedrock"),
         HabilidadeEscolhida(origem="RAG", texto="RAG"),
+    ]
+)
+PROJETOS = SaidaProjetos(
+    projetos=[
+        ProjetoGerado(
+            origem="assistente-rag",
+            nome="Assistente RAG para documentação técnica",
+            reconhecimento="Melhor projeto final do curso",
+            bullets=[
+                BulletGerado(
+                    origem=["rag-docs"],
+                    texto="Desenvolvimento em grupo de assistente RAG para documentação "
+                    "técnica, com orquestração em LangGraph.",
+                )
+            ],
+        )
     ]
 )
 RESUMO = SaidaResumo(
@@ -175,8 +195,16 @@ def test_curriculo_montado_por_todos_os_agentes_passa_nas_regras():
     habilidades = selecionar_habilidades(
         ANALISE, experiencias, cursos, BASE, CONFIG, LLMFalsa(HABILIDADES)
     )
+    projetos = selecionar_projetos(ANALISE, BASE, CONFIG, LLMFalsa(PROJETOS))
     resumo = escrever_resumo(
-        ANALISE, experiencias, cursos, formacao, BASE, CONFIG, LLMFalsa(RESUMO)
+        ANALISE,
+        experiencias,
+        cursos,
+        formacao,
+        BASE,
+        CONFIG,
+        LLMFalsa(RESUMO),
+        projetos=projetos,
     )
     cv = Curriculo(
         cabecalho=Cabecalho(
@@ -185,6 +213,7 @@ def test_curriculo_montado_por_todos_os_agentes_passa_nas_regras():
         ),
         resumo=resumo,
         experiencias=experiencias,
+        projetos=projetos,
         formacao=formacao,
         cursos=cursos,
         habilidades=habilidades,
@@ -230,3 +259,39 @@ def test_tecnica_pedida_na_vaga_entra_mesmo_sem_evidencia():
     )
     resultado = selecionar_habilidades(analise, [], [], BASE, CONFIG, LLMFalsa(saida))
     assert [h.origem for h in resultado] == ["Power BI"]
+
+
+# ---------- Projetos ----------
+
+
+def test_projeto_com_fatos_da_origem():
+    [p] = selecionar_projetos(ANALISE, BASE, CONFIG, LLMFalsa(PROJETOS))
+    assert (p.nome, p.ano, p.url, p.reconhecimento) == (
+        "Assistente RAG para documentação técnica",
+        "2025",
+        "github.com/maria-exemplo/assistente-rag",
+        "Melhor projeto final do curso",
+    )
+
+
+def test_reconhecimento_sem_award_na_origem_e_descartado():
+    semaward = BASE.projetos[0].model_copy(update={"award": None})
+    base = BASE.model_copy(update={"projetos": [semaward]})
+    [p] = selecionar_projetos(ANALISE, base, CONFIG, LLMFalsa(PROJETOS))
+    assert p.reconhecimento is None
+
+
+def test_projeto_inventado_e_descartado_e_limite_zero():
+    saida = PROJETOS.model_copy(deep=True)
+    saida.projetos[0].origem = "projeto-fantasma"
+    assert selecionar_projetos(ANALISE, BASE, CONFIG, LLMFalsa(saida)) == []
+    lim = CONFIG.limites.model_copy(update={"projetos_max": 0})
+    config = CONFIG.model_copy(update={"limites": lim})
+    llm = LLMFalsa(PROJETOS)
+    assert selecionar_projetos(ANALISE, BASE, config, llm) == []
+    assert llm.chamadas == []
+
+
+def test_tags_do_projeto_contam_como_evidencia():
+    projetos = selecionar_projetos(ANALISE, BASE, CONFIG, LLMFalsa(PROJETOS))
+    assert "LangGraph" in evidencias([], [], BASE, projetos)

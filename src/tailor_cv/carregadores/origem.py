@@ -20,6 +20,7 @@ from tailor_cv.schemas import (
     Habilidades,
     IdiomaOrigem,
     Perfil,
+    ProjetoOrigem,
 )
 
 BULLET_COM_ID = re.compile(r"^- \[([^\]]+)\]\s+(.+)$")
@@ -30,6 +31,20 @@ IDIOMA = re.compile(r"^- ([^:]+):\s*(.+)$")
 
 class ErroDeOrigem(Exception):
     """Problema num arquivo da base de dados, com o local exato."""
+
+
+def _ler_frontmatter(arquivo: Path) -> tuple[frontmatter.Post, str]:
+    """Lê o arquivo e o frontmatter; um YAML inválido vira erro com o arquivo."""
+    texto = arquivo.read_text(encoding="utf-8")
+    try:
+        return frontmatter.loads(texto), texto
+    except yaml.YAMLError as exc:
+        dica = ""
+        if "mapping values" in str(exc):
+            dica = ' Dica: um valor com ":" precisa estar entre aspas.'
+        raise ErroDeOrigem(
+            f"{arquivo}: YAML inválido no frontmatter: {exc}.{dica}"
+        ) from None
 
 
 def _validar[M: BaseModel](modelo: type[M], dados: dict[str, Any], arquivo: Path) -> M:
@@ -66,16 +81,17 @@ def _arquivos_md(pasta: Path) -> list[Path]:
 
 
 def carregar_perfil(arquivo: Path) -> Perfil:
-    dados = yaml.safe_load(arquivo.read_text(encoding="utf-8")) or {}
+    try:
+        dados = yaml.safe_load(arquivo.read_text(encoding="utf-8")) or {}
+    except yaml.YAMLError as exc:
+        raise ErroDeOrigem(f"{arquivo}: YAML inválido: {exc}") from None
     return _validar(Perfil, dados, arquivo)
 
 
-def carregar_experiencia(arquivo: Path) -> ExperienciaOrigem:
-    texto = arquivo.read_text(encoding="utf-8")
-    post = frontmatter.loads(texto)
+def _ler_com_conquistas(arquivo: Path) -> tuple[dict[str, Any], str | None, list]:
+    """Frontmatter, contexto e conquistas de um arquivo de experiência ou projeto."""
+    post, texto = _ler_frontmatter(arquivo)
     meta = dict(post.metadata)
-    if str(meta.get("end", "")).strip().lower() == "present":
-        meta["end"] = None
 
     deslocamento = texto[: texto.find(post.content)].count("\n") if post.content else 0
     secoes = _secoes(post.content, deslocamento)
@@ -104,7 +120,13 @@ def carregar_experiencia(arquivo: Path) -> ExperienciaOrigem:
             )
         else:
             raise ErroDeOrigem(f"{local}: linha não reconhecida: {linha.strip()!r}")
+    return meta, contexto, conquistas
 
+
+def carregar_experiencia(arquivo: Path) -> ExperienciaOrigem:
+    meta, contexto, conquistas = _ler_com_conquistas(arquivo)
+    if str(meta.get("end", "")).strip().lower() == "present":
+        meta["end"] = None
     return _validar(
         ExperienciaOrigem,
         {**meta, "context": contexto, "achievements": conquistas},
@@ -112,14 +134,23 @@ def carregar_experiencia(arquivo: Path) -> ExperienciaOrigem:
     )
 
 
+def carregar_projeto(arquivo: Path) -> ProjetoOrigem:
+    meta, contexto, conquistas = _ler_com_conquistas(arquivo)
+    return _validar(
+        ProjetoOrigem,
+        {**meta, "context": contexto, "achievements": conquistas},
+        arquivo,
+    )
+
+
 def carregar_formacao(arquivo: Path) -> FormacaoOrigem:
-    post = frontmatter.load(arquivo)
+    post, _ = _ler_frontmatter(arquivo)
     notas = post.content.strip() or None
     return _validar(FormacaoOrigem, {**post.metadata, "notes": notas}, arquivo)
 
 
 def carregar_curso(arquivo: Path) -> CursoOrigem:
-    post = frontmatter.load(arquivo)
+    post, _ = _ler_frontmatter(arquivo)
     return _validar(CursoOrigem, dict(post.metadata), arquivo)
 
 
@@ -175,11 +206,15 @@ def carregar_base(pasta: Path) -> BaseDados:
         opcional("cursos"),
         opcional("idiomas.md"),
     )
+    pasta_projetos = opcional("projetos")
     dados = {
         "perfil": carregar_perfil(pasta / "perfil.yaml"),
         "experiencias": [
             carregar_experiencia(a) for a in _arquivos_md(pasta / "experiencias")
         ],
+        "projetos": [carregar_projeto(a) for a in _arquivos_md(pasta_projetos)]
+        if pasta_projetos
+        else [],
         "formacao": [carregar_formacao(a) for a in _arquivos_md(pasta_formacao)]
         if pasta_formacao
         else [],

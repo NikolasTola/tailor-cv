@@ -36,6 +36,7 @@ AGENTES_LLM = (
     "habilidades",
     "resumo",
     "validador",
+    "projetos",
 )
 
 
@@ -81,7 +82,10 @@ def _executar_json(vaga: Path, dados: Path) -> Path:
     estado: dict[str, Any] = dict(entrada)
     try:
         # um modelo por agente, como definido no config.yaml
-        llms = {nome: criar_llm(getattr(config.modelos, nome)) for nome in AGENTES_LLM}
+        # Projetos usa o modelo de Cursos se o config.yaml não definir um próprio
+        modelos = config.modelos.model_dump()
+        modelos["projetos"] = modelos["projetos"] or modelos["cursos"]
+        llms = {nome: criar_llm(modelos[nome]) for nome in AGENTES_LLM}
         grafo = construir_grafo(base, config, i18n, llms)
         with Live(painel.tabela(), console=console, refresh_per_second=8) as ao_vivo:
             # "custom": avisos dos nós para o painel; "values": o estado completo,
@@ -236,6 +240,7 @@ def checar(dados: DadosOpt = Path("dados")) -> None:
         f"  Experiências: {len(base.experiencias)} ({bullets} bullets, "
         f"{com_metrica} com métrica)"
     )
+    typer.echo(f"  Projetos:     {len(base.projetos)}")
     typer.echo(f"  Formação:     {len(base.formacao)}")
     typer.echo(f"  Cursos:       {len(base.cursos)}")
     typer.echo(

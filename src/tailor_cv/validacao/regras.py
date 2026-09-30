@@ -1,3 +1,9 @@
+"""Validador de regras (onda 4): verificações determinísticas, sem LLM.
+
+Confere o currículo gerado contra a base de dados de origem. Cada problema indica
+o agente responsável, para que a retentativa (Etapa 5) refaça só o que falhou.
+"""
+
 import re
 from dataclasses import dataclass, field
 from decimal import Decimal, InvalidOperation
@@ -18,6 +24,7 @@ Agente = Literal[
     "cursos",
     "resumo",
     "habilidades",
+    "projetos",
 ]
 
 NUMERO = re.compile(r"(?<![\w.,])\d+(?:[.,]\d+)*")
@@ -87,6 +94,8 @@ def _contem_termo(texto: str, termo: str) -> bool:
 def _vocabulario_tecnico(base: BaseDados) -> set[str]:
     termos = {t for x in base.experiencias for a in x.achievements for t in a.tech}
     termos |= {t for c in base.cursos for t in c.tech}
+    termos |= {t for p in base.projetos for t in p.tech}
+    termos |= {t for p in base.projetos for a in p.achievements for t in a.tech}
     termos |= set(base.habilidades.technical)
     return termos
 
@@ -173,6 +182,55 @@ def _checar_texto(
         )
 
 
+def _checar_bullets(
+    col: _Coletor,
+    agente: Agente,
+    local: str,
+    bullets: list,
+    conquistas: dict,
+    tags_do_item: list[str],
+    limite_palavras: int,
+    proibidas: list[str],
+    vocabulario: set[str],
+) -> tuple[list[str], set[str], list[str]]:
+    """Confere cada bullet contra os bullets de origem. Devolve as tags, os números
+    e os textos de origem usados, que o resumo também pode citar."""
+    tags_usadas: list[str] = []
+    numeros_usados: set[str] = set()
+    textos_usados: list[str] = []
+    for j, b in enumerate(bullets):
+        local_b = f"{local}.bullets[{j}]"
+        faltando = [o for o in b.origem if o not in conquistas]
+        if faltando:
+            col.bloqueio(
+                agente,
+                "bullet_sem_origem",
+                local_b,
+                f"ID(s) de origem inexistente(s): {', '.join(faltando)}",
+            )
+            continue
+        fontes = [conquistas[o] for o in b.origem]
+        texto_origem = " ".join(f"{a.text} {a.metric or ''}" for a in fontes)
+        tags = [t for a in fontes for t in a.tech] + list(tags_do_item)
+        numeros = numeros_en(texto_origem)
+        _checar_texto(
+            col,
+            agente,
+            local_b,
+            b.texto,
+            limite_palavras=limite_palavras,
+            proibidas=proibidas,
+            numeros_origem=numeros,
+            vocabulario=vocabulario,
+            tags_permitidas=tags,
+            texto_origem=texto_origem,
+        )
+        tags_usadas += tags
+        numeros_usados |= numeros
+        textos_usados.append(texto_origem)
+    return tags_usadas, numeros_usados, textos_usados
+
+
 # ---------- validação ----------
 
 
@@ -256,37 +314,65 @@ def validar_regras(
                 "experiencia", "divergente", local, "modalidade difere da origem"
             )
 
-        conquistas = {a.id: a for a in origem.achievements}
-        for j, b in enumerate(x.bullets):
-            local_b = f"{local}.bullets[{j}]"
-            faltando = [o for o in b.origem if o not in conquistas]
-            if faltando:
-                col.bloqueio(
-                    "experiencia",
-                    "bullet_sem_origem",
-                    local_b,
-                    f"ID(s) de origem inexistente(s) em {x.origem}: {', '.join(faltando)}",
-                )
-                continue
-            fontes = [conquistas[o] for o in b.origem]
-            texto_origem = " ".join(f"{a.text} {a.metric or ''}" for a in fontes)
-            tags = [t for a in fontes for t in a.tech]
-            numeros = numeros_en(texto_origem)
-            _checar_texto(
-                col,
-                "experiencia",
-                local_b,
-                b.texto,
-                limite_palavras=limites.bullet_palavras_max,
-                proibidas=proibidas,
-                numeros_origem=numeros,
-                vocabulario=vocabulario,
-                tags_permitidas=tags,
-                texto_origem=texto_origem,
+        tags, numeros, textos = _checar_bullets(
+            col,
+            "experiencia",
+            local,
+            x.bullets,
+            {a.id: a for a in origem.achievements},
+            [],
+            limites.bullet_palavras_max,
+            proibidas,
+            vocabulario,
+        )
+        tags_selecionadas += tags
+        numeros_selecionados |= numeros
+        textos_selecionados += textos
+
+    # Projetos: fatos da origem; bullets com as mesmas regras das experiências
+    projetos_base = {p.id: p for p in base.projetos}
+    projetos_vistos: set[str] = set()
+    for i, p in enumerate(cv.projetos):
+        local = f"projetos[{i}] ({p.origem})"
+        origem_p = projetos_base.get(p.origem)
+        if origem_p is None:
+            col.bloqueio(
+                "projetos", "origem_inexistente", local, "projeto não existe na base"
             )
-            tags_selecionadas += tags
-            numeros_selecionados |= numeros
-            textos_selecionados.append(texto_origem)
+            continue
+        if p.origem in projetos_vistos:
+            col.bloqueio(
+                "projetos", "duplicada", local, "projeto repetido no currículo"
+            )
+        projetos_vistos.add(p.origem)
+        ano_origem = str(origem_p.year) if origem_p.year else None
+        if p.ano != ano_origem:
+            col.bloqueio(
+                "projetos", "divergente", local, f"ano difere da origem ({ano_origem})"
+            )
+        if p.url != origem_p.url:
+            col.bloqueio("projetos", "divergente", local, "link difere da origem")
+        if p.reconhecimento and not origem_p.award:
+            col.bloqueio(
+                "projetos",
+                "reconhecimento_sem_origem",
+                local,
+                "reconhecimento citado, mas a origem não tem 'award'",
+            )
+        tags, numeros, textos = _checar_bullets(
+            col,
+            "projetos",
+            local,
+            p.bullets,
+            {a.id: a for a in origem_p.achievements},
+            origem_p.tech,
+            limites.bullet_palavras_max,
+            proibidas,
+            vocabulario,
+        )
+        tags_selecionadas += tags
+        numeros_selecionados |= numeros
+        textos_selecionados += textos
 
     obrigatorias = [
         x.id for x in base.experiencias if x.always_include and x.id not in vistas

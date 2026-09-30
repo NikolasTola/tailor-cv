@@ -96,3 +96,13 @@ def test_arquivo_obrigatorio_faltando(base):
     (base / "perfil.yaml").unlink()
     with pytest.raises(ErroDeOrigem, match="perfil.yaml"):
         carregar_base(base)
+
+
+def test_yaml_invalido_vira_erro_com_dica(tmp_path):
+    arquivo = tmp_path / "exp.md"
+    arquivo.write_text(
+        "---\nid: x\ncompany: A\nrole: Dev: Senior\nstart: 2022-01\n---\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(ErroDeOrigem, match="entre aspas"):
+        carregar_experiencia(arquivo)

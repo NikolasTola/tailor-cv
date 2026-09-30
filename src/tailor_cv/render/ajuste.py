@@ -1,8 +1,8 @@
 """Corte automático para o currículo caber no limite de páginas.
 
 Só remove conteúdo, nunca reescreve: por isso o currículo cortado continua passando
-nas validações. Ordem: primeiro os cursos (do fim da lista, os menos relevantes),
-depois bullets das experiências com menor nota de relevância.
+nas validações. Ordem: primeiro os cursos e depois os projetos (do fim da lista, os
+menos relevantes), e por último bullets das experiências com menor nota.
 """
 
 import tempfile
@@ -27,6 +27,10 @@ def ajustar_paginas(
             if cv.cursos:
                 curso = cv.cursos.pop()
                 cortes.append(f"curso removido: {curso.nome}")
+                continue
+            if cv.projetos:
+                projeto = cv.projetos.pop()
+                cortes.append(f"projeto removido: {projeto.nome}")
                 continue
             # a experiência de menor nota que ainda tem mais de um bullet;
             # entre notas iguais, a mais antiga
