@@ -93,18 +93,19 @@ def validar_fidelidade(
     )
 
     resultado = ResultadoValidacao()
-    for p in saida.problemas:
-        item = itens.get(p.item)
-        if item is None:
-            continue  # ID inventado pelo validador: não há o que corrigir
+    for a in saida.avaliacoes:
+        item = itens.get(a.item)
+        if item is None or a.veredito == "fiel":
+            continue  # ID inventado pelo validador ou item aprovado
         agente: Agente = item["agente"]
+        trecho = a.trecho or item["texto_pt"]
         problema = Problema(
             agente=agente,
-            verificacao=p.tipo,
-            local=p.item,
-            mensagem=f"{p.trecho!r}: {p.explicacao}",
+            verificacao=a.veredito,
+            local=a.item,
+            mensagem=f"{trecho!r}: {a.comparacao}",
         )
-        if p.tipo in BLOQUEIAM:
+        if a.veredito in BLOQUEIAM:
             resultado.bloqueios.append(problema)
         else:
             resultado.alertas.append(problema)

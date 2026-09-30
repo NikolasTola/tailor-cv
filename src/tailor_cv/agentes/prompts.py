@@ -57,7 +57,7 @@ o original.
 "redução de 30% no gasto mensal com Bedrock", nunca "redução de 30% dos gastos".
 - Cite as tecnologias do bullet que a vaga pede (requisitos e palavras-chave da \
 análise): elas contam na triagem automática. Omita as que a vaga não menciona. \
-Evite repetições como "na AWS usando AWS Bedrock".".
+Evite repetições como "na AWS usando AWS Bedrock".
 - Quando a vaga usa uma expressão equivalente ao que o bullet descreve (ex.: \
 "infraestrutura como código" para provisionamento com AWS CDK), prefira a da vaga.
 - O cargo é a tradução do "role" da própria experiência. Nunca use o cargo da vaga \
@@ -154,5 +154,24 @@ Adaptações PERMITIDAS, que não são problema:
 - formato numérico brasileiro (2,000 vira 2.000; 2.5x vira 2,5x);
 - flexionar o cargo no feminino ou no masculino.
 
-Seja rigoroso com fatos e tolerante com estilo: só aponte problemas reais. Em "item", \
-copie exatamente o ID recebido. Se tudo estiver fiel, devolva a lista vazia."""
+Como avaliar: percorra TODOS os itens, um por um, na ordem recebida. Para cada item:
+1. Liste mentalmente cada afirmação do texto em português e procure-a na origem.
+2. Para cada número, identifique o que ele mede na origem (qual gasto, quais \
+pessoas, qual processo) e confira se o português mede exatamente a mesma coisa. \
+"30% reduction in monthly Bedrock spend" permite "30% no gasto mensal com Bedrock", \
+mas não "30% dos gastos" nem "30% dos gastos da empresa".
+3. Escreva a comparação e só então dê o veredito: "fiel" ou o tipo de problema.
+
+Seja rigoroso com fatos e tolerante com estilo. Em "item", copie exatamente o ID \
+recebido."""
+
+
+def com_correcoes(humano: str, correcoes: list[str] | None) -> str:
+    """Anexa ao pedido os problemas que o validador encontrou na tentativa anterior."""
+    if not correcoes:
+        return humano
+    lista = "\n".join(f"- {c}" for c in correcoes)
+    return (
+        f"{humano}\n\nNa tentativa anterior, o validador encontrou estes problemas. "
+        f"Corrija-os e continue seguindo todas as regras:\n{lista}"
+    )

@@ -9,9 +9,10 @@ from test_agentes_secoes import CURSOS, FORMACAO, HABILIDADES, RESUMO
 
 from tailor_cv.carregadores import carregar_base, carregar_i18n
 from tailor_cv.config import carregar_config
-from tailor_cv.grafo import NOS, construir_grafo
+from tailor_cv.grafo import NOS, _pode_corrigir, construir_grafo
 from tailor_cv.painel import Painel
-from tailor_cv.schemas.agentes import SaidaFidelidade
+from tailor_cv.schemas.agentes import AvaliacaoFidelidade, SaidaFidelidade
+from tailor_cv.validacao import Problema, ResultadoValidacao
 
 RAIZ = Path(__file__).parent.parent
 BASE = carregar_base(RAIZ / "exemplos" / "dados")
@@ -26,7 +27,7 @@ AGENTES = (
     "resumo",
     "validador",
 )
-FIEL = SaidaFidelidade(problemas=[])
+FIEL = SaidaFidelidade(avaliacoes=[])
 
 
 def _llm() -> LLMFalsa:
@@ -38,12 +39,11 @@ def _rodar(entrada: dict, llm: LLMFalsa | None = None) -> tuple[dict, list[dict]
     llm = llm or _llm()
     grafo = construir_grafo(BASE, CONFIG, I18N, dict.fromkeys(AGENTES, llm))
     estado, eventos = dict(entrada), []
-    for modo, dado in grafo.stream(entrada, stream_mode=["custom", "updates"]):
+    for modo, dado in grafo.stream(entrada, stream_mode=["custom", "values"]):
         if modo == "custom":
             eventos.append(dado)
         else:
-            for atualizacao in dado.values():
-                estado.update(atualizacao or {})
+            estado = dado
     return estado, eventos
 
 
@@ -60,7 +60,7 @@ def test_grafo_completo_gera_curriculo_aprovado():
 def test_todos_os_nos_avisam_inicio_e_fim():
     _, eventos = _rodar({"texto_vaga": "vaga"})
     finais = {e["no"]: e["status"] for e in eventos if e["status"] != "rodando"}
-    assert finais == {nome: "ok" for nome, _ in NOS}
+    assert finais == {nome: "ok" for nome, _ in NOS if nome != "corrigir"}
 
 
 def test_analise_em_cache_pula_a_llm_do_analisador():
@@ -143,5 +143,79 @@ def test_fidelidade_nao_roda_se_as_regras_bloquearem():
     )
     estado, eventos = _rodar({"texto_vaga": "vaga"}, llm)
     assert not estado["validacao"].aprovado
-    assert "fidelidade" not in estado
+    assert estado.get("fidelidade") is None
     assert all(e["no"] != "validar_fidelidade" for e in eventos)
+
+
+# ---------- Correções automáticas ----------
+
+RESUMO_RUIM = RESUMO.model_copy(
+    update={"resumo": "Profissional com 10 anos de experiência em AWS."}
+)
+
+
+def test_bloqueio_nas_regras_e_corrigido_na_retentativa():
+    llm = _llm()
+    llm.respostas[type(RESUMO)] = [RESUMO_RUIM, RESUMO]
+    estado, _ = _rodar({"texto_vaga": "vaga"}, llm)
+    assert estado["validacao"].aprovado and estado["fidelidade"].aprovado
+    [h] = estado["historico"]
+    assert h["refeitos"] == ["resumo"]  # só o agente culpado
+    assert "10" in h["bloqueios"][0]
+    # a nova chamada do Resumo recebeu o problema no prompt
+    ultima_do_resumo = [c for c in llm.chamadas if "agente de Resumo" in c[0].content][
+        -1
+    ]
+    assert "Na tentativa anterior" in ultima_do_resumo[1].content
+
+
+def test_bloqueio_na_experiencia_refaz_os_dependentes():
+    llm = _llm()
+    fidelidade_ruim = SaidaFidelidade(
+        avaliacoes=[
+            AvaliacaoFidelidade(
+                item="exp:empresa-alfa:bullet:1",
+                veredito="inflacao",
+                trecho="30%",
+                comparacao="escopo ampliado",
+            )
+        ]
+    )
+    llm.respostas[SaidaFidelidade] = [fidelidade_ruim, FIEL]
+    estado, _ = _rodar({"texto_vaga": "vaga"}, llm)
+    assert estado["fidelidade"].aprovado
+    assert estado["historico"][0]["refeitos"] == [
+        "experiencia",
+        "habilidades",
+        "resumo",
+    ]
+
+
+def test_desiste_depois_do_limite_de_retentativas():
+    llm = _llm()
+    llm.respostas[type(RESUMO)] = RESUMO_RUIM
+    estado, _ = _rodar({"texto_vaga": "vaga"}, llm)
+    assert not estado["validacao"].aprovado
+    assert len(estado["historico"]) == CONFIG.limites.retentativas_max
+    assert estado.get("fidelidade") is None
+
+
+def test_bloqueio_de_agente_de_regra_nao_e_retentado():
+    estado = {
+        "validacao": ResultadoValidacao(
+            bloqueios=[Problema("dados_pessoais", "divergente", "cabecalho.email", "x")]
+        ),
+        "tentativas": 0,
+    }
+    assert not _pode_corrigir(estado, CONFIG)
+
+
+def test_sem_retentativas_configuradas():
+    lim = CONFIG.limites.model_copy(update={"retentativas_max": 0})
+    config = CONFIG.model_copy(update={"limites": lim})
+    llm = _llm()
+    llm.respostas[type(RESUMO)] = [RESUMO_RUIM, RESUMO]
+    grafo = construir_grafo(BASE, config, I18N, dict.fromkeys(AGENTES, llm))
+    estado = grafo.invoke({"texto_vaga": "vaga"})
+    assert not estado["validacao"].aprovado
+    assert estado.get("historico", []) == []

@@ -20,6 +20,7 @@ ROTULOS = {
     "montar": "Montar currículo",
     "validar_regras": "Validar regras",
     "validar_fidelidade": "Validar fidelidade",
+    "corrigir": "Corrigir",
 }
 LLM = {
     "analisador",
@@ -44,6 +45,7 @@ ESTILO = {
 class StatusNo:
     status: str = "aguardando"
     segundos: float | None = None
+    execucoes: int = 0  # quantas vezes o nó terminou (mais de 1 = foi refeito)
 
 
 class Painel:
@@ -52,9 +54,13 @@ class Painel:
 
     def atualizar(self, evento: dict) -> None:
         no = self.nos.get(evento.get("no", ""))
-        if no is not None:
-            no.status = evento["status"]
-            no.segundos = evento.get("segundos")
+        if no is None:
+            return
+        no.status = evento["status"]
+        if "segundos" in evento:
+            no.segundos = evento["segundos"]
+        if evento["status"] in ("ok", "cache"):
+            no.execucoes += 1
 
     def tabela(self) -> Table:
         tabela = Table(title="TailorCV", title_justify="left", box=None, padding=(0, 2))
@@ -66,6 +72,10 @@ class Painel:
         for nome, onda in NOS:
             no = self.nos[nome]
             texto, estilo = ESTILO[no.status]
+            # agentes refeitos mostram quantas vezes rodaram; "corrigir", quantas correções
+            limite = 0 if nome == "corrigir" else 1
+            if no.execucoes > limite:
+                texto += f" ({no.execucoes}x)"
             tempo = f"{no.segundos:.1f}s" if no.segundos is not None else ""
             tipo = "LLM" if nome in LLM else "regra"
             tabela.add_row(

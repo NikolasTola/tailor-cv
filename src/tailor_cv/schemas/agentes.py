@@ -85,16 +85,32 @@ class SaidaResumo(BaseModel):
 TipoProblema = Literal[
     "sem_lastro", "inflacao", "traducao_errada", "forma_verbal", "termo_traduzido"
 ]
+Veredito = Literal[
+    "fiel",
+    "sem_lastro",
+    "inflacao",
+    "traducao_errada",
+    "forma_verbal",
+    "termo_traduzido",
+]
 
 
-class ProblemaFidelidade(BaseModel):
-    item: str = Field(description="ID do item com problema, copiado da lista recebida")
-    tipo: TipoProblema
-    trecho: str = Field(description="Trecho exato do texto em português com problema")
-    explicacao: str = Field(description="O que está errado, em uma frase")
+class AvaliacaoFidelidade(BaseModel):
+    # A ordem dos campos importa: o modelo escreve a comparação antes de decidir.
+    item: str = Field(description="ID do item, copiado exatamente da lista recebida")
+    comparacao: str = Field(
+        description=(
+            "Compare o texto em português com a origem, em uma ou duas frases: os "
+            "fatos são os mesmos? Cada número mede a mesma coisa, com o mesmo escopo?"
+        )
+    )
+    veredito: Veredito
+    trecho: str = Field(
+        default="", description="Trecho em português com problema; vazio se fiel"
+    )
 
 
 class SaidaFidelidade(BaseModel):
-    problemas: list[ProblemaFidelidade] = Field(
-        description="Somente problemas reais; lista vazia se estiver tudo fiel"
+    avaliacoes: list[AvaliacaoFidelidade] = Field(
+        description="Uma avaliação para cada item recebido, na mesma ordem"
     )

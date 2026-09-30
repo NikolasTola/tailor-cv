@@ -32,6 +32,7 @@ class LimitesExperiencias(Base):
 
 class Limites(Base):
     paginas_max: int = Field(ge=1)
+    retentativas_max: int = Field(default=2, ge=0, le=5)
     resumo_palavras_max: int = Field(ge=1)
     bullet_palavras_max: int = Field(ge=1)
     experiencias: LimitesExperiencias

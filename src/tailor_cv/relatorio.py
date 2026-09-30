@@ -14,6 +14,8 @@ def gerar_relatorio(
     validacao: ResultadoValidacao | None,
     fidelidade: ResultadoValidacao | None,
     painel: Painel,
+    historico: list[dict] | None = None,
+    cortes: list[str] | None = None,
 ) -> str:
     linhas = [
         f"# Relatório: {nome_vaga}",
@@ -52,6 +54,19 @@ def gerar_relatorio(
         else:
             linhas += [f"- **Bloqueio:** {p}" for p in resultado.bloqueios]
             linhas += [f"- Alerta: {p}" for p in resultado.alertas]
+
+    if historico:
+        linhas += ["", "## Correções automáticas", ""]
+        for h in historico:
+            linhas.append(
+                f"**Tentativa {h['tentativa']}:** refeitos {', '.join(h['refeitos'])}"
+            )
+            linhas += [f"- {b}" for b in h["bloqueios"]]
+            linhas.append("")
+
+    if cortes:
+        linhas += ["", "## Cortes para caber no limite de páginas", ""]
+        linhas += [f"- {c}" for c in cortes]
 
     linhas += [
         "",

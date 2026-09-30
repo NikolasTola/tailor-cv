@@ -27,7 +27,14 @@ def _json(dados: object) -> str:
     return json.dumps(dados, ensure_ascii=False, indent=1)
 
 
-def _chamar[T](llm: ModeloEstruturado, schema: type[T], sistema: str, humano: str) -> T:
+def _chamar[T](
+    llm: ModeloEstruturado,
+    schema: type[T],
+    sistema: str,
+    humano: str,
+    correcoes: list[str] | None = None,
+) -> T:
+    humano = prompts.com_correcoes(humano, correcoes)
     mensagens = [SystemMessage(sistema), HumanMessage(humano)]
     return llm.with_structured_output(schema).invoke(mensagens)
 
@@ -35,13 +42,15 @@ def _chamar[T](llm: ModeloEstruturado, schema: type[T], sistema: str, humano: st
 # ---------- Formação ----------
 
 
-def gerar_formacao(base: BaseDados, llm: ModeloEstruturado) -> list[Formacao]:
+def gerar_formacao(
+    base: BaseDados, llm: ModeloEstruturado, correcoes: list[str] | None = None
+) -> list[Formacao]:
     """Traduz os nomes dos cursos. Todas as formações entram, da mais recente à mais antiga."""
     if not base.formacao:
         return []
     entrada = [{"id": f.id, "degree": f.degree} for f in base.formacao]
     saida = _chamar(
-        llm, SaidaFormacao, prompts.FORMACAO, f"Formações:\n{_json(entrada)}"
+        llm, SaidaFormacao, prompts.FORMACAO, f"Formações:\n{_json(entrada)}", correcoes
     )
     traducoes = {g.origem: g.curso.strip() for g in saida.formacoes if g.curso.strip()}
 
@@ -64,7 +73,11 @@ def gerar_formacao(base: BaseDados, llm: ModeloEstruturado) -> list[Formacao]:
 
 
 def selecionar_cursos(
-    analise: AnaliseVaga, base: BaseDados, config: Config, llm: ModeloEstruturado
+    analise: AnaliseVaga,
+    base: BaseDados,
+    config: Config,
+    llm: ModeloEstruturado,
+    correcoes: list[str] | None = None,
 ) -> list[Curso]:
     """Escolhe e ordena por relevância. Nomes ficam como na origem (são nomes próprios)."""
     if not base.cursos:
@@ -77,6 +90,7 @@ def selecionar_cursos(
         prompts.CURSOS.format(maximo=maximo),
         f"Análise da vaga:\n{analise.model_dump_json(indent=1)}\n\n"
         f"Cursos e certificações:\n{_json(entrada)}",
+        correcoes,
     )
     por_id = {c.id: c for c in base.cursos}
     escolhidos = list(dict.fromkeys(o for o in saida.origens if o in por_id))
@@ -148,6 +162,7 @@ def selecionar_habilidades(
     base: BaseDados,
     config: Config,
     llm: ModeloEstruturado,
+    correcoes: list[str] | None = None,
 ) -> list[Habilidade]:
     # a LLM só vê as técnicas permitidas; o filtro abaixo garante a regra mesmo
     # que ela devolva outra
@@ -164,6 +179,7 @@ def selecionar_habilidades(
         f"Análise da vaga:\n{analise.model_dump_json(indent=1)}\n\n"
         f"Habilidades da candidata:\n{_json(entrada)}\n\n"
         f"Tecnologias já selecionadas:\n{_json(evidencias(experiencias, cursos, base))}",
+        correcoes,
     )
 
     escolhidas: dict[str, Habilidade] = {}
@@ -193,6 +209,7 @@ def escrever_resumo(
     base: BaseDados,
     config: Config,
     llm: ModeloEstruturado,
+    correcoes: list[str] | None = None,
 ) -> str:
     """Roda em paralelo com Habilidades: recebe as comportamentais da base, e não as
     escolhidas, para não precisar esperar aquele agente."""
@@ -211,5 +228,6 @@ def escrever_resumo(
         prompts.RESUMO.format(maximo=config.limites.resumo_palavras_max),
         f"Análise da vaga:\n{analise.model_dump_json(indent=1)}\n\n"
         f"Conteúdo selecionado:\n{_json(conteudo)}",
+        correcoes,
     )
     return " ".join(saida.resumo.split())  # normaliza espaços e quebras de linha

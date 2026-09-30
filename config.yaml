@@ -13,6 +13,7 @@ modelos:
 
 limites:
   paginas_max: 2
+  retentativas_max: 2 
   resumo_palavras_max: 80
   bullet_palavras_max: 25
   experiencias:

@@ -37,6 +37,7 @@ def selecionar_experiencias(
     config: Config,
     i18n: I18n,
     llm: ModeloEstruturado,
+    correcoes: list[str] | None = None,
 ) -> tuple[list[Experiencia], list[AvaliacaoExperiencia], dict[str, str]]:
     """Devolve as experiências selecionadas, as avaliações da LLM e, para cada
     experiência omitida, o motivo da omissão."""
@@ -53,8 +54,11 @@ def selecionar_experiencias(
     mensagens = [
         SystemMessage(sistema),
         HumanMessage(
-            f"Análise da vaga:\n{analise.model_dump_json(indent=1)}\n\n"
-            f"Experiências:\n{_experiencias_para_prompt(base)}"
+            prompts.com_correcoes(
+                f"Análise da vaga:\n{analise.model_dump_json(indent=1)}\n\n"
+                f"Experiências:\n{_experiencias_para_prompt(base)}",
+                correcoes,
+            )
         ),
     ]
     saida: SaidaExperiencia = llm.with_structured_output(SaidaExperiencia).invoke(

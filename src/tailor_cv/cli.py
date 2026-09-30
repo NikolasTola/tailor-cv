@@ -16,9 +16,9 @@ from tailor_cv.grafo import construir_grafo
 from tailor_cv.llm import criar_llm, descrever_erro
 from tailor_cv.painel import Painel
 from tailor_cv.relatorio import gerar_relatorio
-from tailor_cv.render import gerar_pdf
+from tailor_cv.render import ajustar_paginas, gerar_pdf
 from tailor_cv.schemas import Curriculo
-from tailor_cv.validacao import validar_regras
+from tailor_cv.validacao import validar_fidelidade, validar_regras
 
 app = typer.Typer(help="TailorCV: currículo sob medida para cada vaga.")
 console = Console()
@@ -84,13 +84,14 @@ def _executar_json(vaga: Path, dados: Path) -> Path:
         llms = {nome: criar_llm(getattr(config.modelos, nome)) for nome in AGENTES_LLM}
         grafo = construir_grafo(base, config, i18n, llms)
         with Live(painel.tabela(), console=console, refresh_per_second=8) as ao_vivo:
-            for modo, dado in grafo.stream(entrada, stream_mode=["custom", "updates"]):
+            # "custom": avisos dos nós para o painel; "values": o estado completo,
+            # já com os redutores aplicados (ex.: o histórico de correções)
+            for modo, dado in grafo.stream(entrada, stream_mode=["custom", "values"]):
                 if modo == "custom":
                     painel.atualizar(dado)
                     ao_vivo.update(painel.tabela())
                 else:
-                    for atualizacao in dado.values():
-                        estado.update(atualizacao or {})
+                    estado = dado
         console.print()
     except ErroDeRegra as exc:
         _erro(f"Um agente violou uma regra: {exc}")
@@ -101,6 +102,25 @@ def _executar_json(vaga: Path, dados: Path) -> Path:
 
     if analise is None:
         salvar_analise(nome_vaga, texto_vaga, estado["analise"])
+
+    validacao = estado["validacao"]
+    fidelidade = estado.get("fidelidade")
+    historico = estado.get("historico", [])
+    alertas = validacao.alertas + (fidelidade.alertas if fidelidade else [])
+    bloqueios = validacao.bloqueios + (fidelidade.bloqueios if fidelidade else [])
+    if fidelidade is None:
+        painel.nos["validar_fidelidade"].status = "pulado"
+    if not historico:
+        painel.nos["corrigir"].status = "pulado"
+
+    # corte automático, só para currículo aprovado: remover nunca inventa nada
+    cortes: list[str] = []
+    if not bloqueios:
+        notas = {a.origem: a.nota for a in estado["avaliacoes"]}
+        cv, _, cortes = ajustar_paginas(
+            estado["curriculo"], config.limites.paginas_max, notas
+        )
+        estado["curriculo"] = cv
 
     # registro da execução
     pasta = (
@@ -113,10 +133,6 @@ def _executar_json(vaga: Path, dados: Path) -> Path:
     (pasta / "curriculo.json").write_text(
         estado["curriculo"].model_dump_json(indent=2), encoding="utf-8"
     )
-    validacao = estado["validacao"]
-    fidelidade = estado.get("fidelidade")
-    if fidelidade is None:
-        painel.nos["validar_fidelidade"].status = "pulado"
     incluidas = {x.origem for x in estado["experiencias"]}
     (pasta / "relatorio.md").write_text(
         gerar_relatorio(
@@ -128,25 +144,38 @@ def _executar_json(vaga: Path, dados: Path) -> Path:
             validacao,
             fidelidade,
             painel,
+            historico,
+            cortes,
         ),
         encoding="utf-8",
     )
 
+    for h in historico:
+        typer.secho(
+            f"CORREÇÃO {h['tentativa']}: {len(h['bloqueios'])} bloqueio(s); "
+            f"refeitos: {', '.join(h['refeitos'])}",
+            fg=typer.colors.CYAN,
+        )
     for id_, motivo in estado["omissoes"].items():
         if "não gerou" in motivo or "não avaliou" in motivo:
             typer.secho(
                 f"ALERTA   experiência {id_} omitida: {motivo}", fg=typer.colors.YELLOW
             )
-    alertas = validacao.alertas + (fidelidade.alertas if fidelidade else [])
-    bloqueios = validacao.bloqueios + (fidelidade.bloqueios if fidelidade else [])
+    for corte in cortes:
+        typer.secho(f"CORTE    {corte}", fg=typer.colors.YELLOW)
     for alerta in alertas:
         typer.secho(f"ALERTA   {alerta}", fg=typer.colors.YELLOW)
     for bloqueio in bloqueios:
         typer.secho(f"BLOQUEIO {bloqueio}", fg=typer.colors.RED)
     if bloqueios:
+        motivo = (
+            f"mesmo depois de {len(historico)} correção(ões) automática(s)"
+            if historico
+            else "e não pode ser corrigido automaticamente"
+        )
         _erro(
-            f"O currículo não passou na validação ({len(bloqueios)} bloqueio(s)). "
-            f"Detalhes em {pasta / 'relatorio.md'}"
+            f"O currículo não passou na validação ({len(bloqueios)} bloqueio(s)), "
+            f"{motivo}. Detalhes em {pasta / 'relatorio.md'}"
         )
 
     PASTA_CURRICULOS.mkdir(exist_ok=True)
@@ -221,20 +250,36 @@ def checar(dados: DadosOpt = Path("dados")) -> None:
 def validar(
     arquivo: Annotated[Path, typer.Argument(help="Arquivo curriculo.<nome_vaga>.json")],
     dados: DadosOpt = Path("dados"),
+    fidelidade: Annotated[
+        bool,
+        typer.Option(
+            "--fidelidade",
+            help="Também confere o sentido com a LLM validadora (1 chamada)",
+        ),
+    ] = False,
 ) -> None:
-    """Confere um currículo contra a base de dados com as regras determinísticas."""
+    """Confere um currículo contra a base de dados: regras e, opcionalmente, fidelidade."""
     cv = _ler_curriculo(arquivo)
     base, i18n, config = _carregar_tudo(dados)
     resultado = validar_regras(cv, base, i18n, config)
+    etapa = "regras"
+    if resultado.aprovado and fidelidade:
+        load_dotenv()
+        try:
+            llm = criar_llm(config.modelos.validador)
+            extra = validar_fidelidade(cv, base, llm)
+        except Exception as exc:  # noqa: BLE001 — erros de provedor variam
+            _erro(descrever_erro(exc))
+        resultado.alertas += extra.alertas
+        resultado.bloqueios += extra.bloqueios
+        etapa = "regras e na fidelidade"
     for alerta in resultado.alertas:
         typer.secho(f"ALERTA   {alerta}", fg=typer.colors.YELLOW)
     for bloqueio in resultado.bloqueios:
         typer.secho(f"BLOQUEIO {bloqueio}", fg=typer.colors.RED)
     if not resultado.aprovado:
-        _erro(
-            f"{len(resultado.bloqueios)} bloqueio(s): o currículo não passou nas regras."
-        )
+        _erro(f"{len(resultado.bloqueios)} bloqueio(s): o currículo não passou.")
     typer.secho(
-        f"Currículo aprovado nas regras ({len(resultado.alertas)} alerta(s)).",
+        f"Currículo aprovado nas {etapa} ({len(resultado.alertas)} alerta(s)).",
         fg=typer.colors.GREEN,
     )
