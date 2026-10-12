@@ -292,6 +292,7 @@ def escrever_resumo(
     """Roda em paralelo com Habilidades: recebe as comportamentais da base, e não as
     escolhidas, para não precisar esperar aquele agente."""
     conteudo = {
+        "posicionamento": base.posicionamento,
         "experiencias": [
             {"cargo": x.cargo, "bullets": [b.texto for b in x.bullets]}
             for x in experiencias

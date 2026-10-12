@@ -1,5 +1,6 @@
 """Script PDF: Curriculo -> PDF com ReportLab. Determinístico, sem LLM."""
 
+import unicodedata
 from pathlib import Path
 from xml.sax.saxutils import escape
 
@@ -59,24 +60,64 @@ ITEM_TITULO = _estilo(fontName="Helvetica-Bold", spaceBefore=9, spaceAfter=4)
 LINHA_ITEM = _estilo(spaceAfter=3)
 
 
+# A Helvetica padrão do PDF só tem os caracteres do Windows-1252. LLMs às vezes
+# escrevem hífens e espaços "tipográficos" fora dessa tabela, que viram um
+# quadrado preto no PDF. Estes são trocados pelo equivalente visível.
+EQUIVALENTES = str.maketrans(
+    {
+        "\u2010": "-",  # hífen
+        "\u2011": "-",  # hífen sem quebra ("e‑commerce")
+        "\u2012": "–",  # traço numérico
+        "\u2212": "-",  # sinal de menos
+        "\u00ad": "",  # hífen condicional
+        "\u2007": " ",  # espaços finos e especiais
+        "\u2009": " ",
+        "\u200a": " ",
+        "\u202f": " ",
+        "\u200b": "",  # espaço de largura zero
+        "\ufeff": "",
+    }
+)
+
+
+def texto_seguro(texto: str) -> str:
+    """Deixa só caracteres que a Helvetica consegue desenhar."""
+    texto = texto.translate(EQUIVALENTES)
+    saida = []
+    for ch in texto:
+        try:
+            ch.encode("cp1252")
+            saida.append(ch)
+        except UnicodeEncodeError:
+            # tenta a versão sem acento ou decoração; se não houver, descarta
+            base = unicodedata.normalize("NFKD", ch).encode("ascii", "ignore").decode()
+            saida.append(base)
+    return "".join(saida)
+
+
 def _e(texto: str) -> str:
-    return escape(texto)
+    return escape(texto_seguro(texto))
 
 
-def _secao(titulo: str) -> Flowable:
-    # título + linha juntos, para a quebra de página nunca separar os dois
-    return KeepTogether(
-        [
-            Paragraph(_e(titulo.upper()), SECAO),
-            HRFlowable(
-                width="100%",
-                thickness=0.8,
-                color=colors.black,
-                spaceBefore=3,
-                spaceAfter=7,
-            ),
-        ]
-    )
+def _secao(titulo: str, itens: list[Flowable]) -> list[Flowable]:
+    """Título, linha e o primeiro item juntos: a quebra de página nunca deixa um
+    título sozinho no fim da página, separado do conteúdo."""
+    cabecalho: list[Flowable] = [
+        Paragraph(_e(titulo.upper()), SECAO),
+        HRFlowable(
+            width="100%",
+            thickness=0.8,
+            color=colors.black,
+            spaceBefore=3,
+            spaceAfter=7,
+        ),
+    ]
+    if not itens:
+        return [KeepTogether(cabecalho)]
+    # KeepTogether dentro de KeepTogether confunde o cálculo de altura do ReportLab
+    # e força quebras de página desnecessárias: o primeiro item é "aberto" aqui
+    primeiro = itens[0]._content if isinstance(itens[0], KeepTogether) else [itens[0]]
+    return [KeepTogether([*cabecalho, *primeiro]), *itens[1:]]
 
 
 def _bullets(bullets: list[Bullet]) -> Flowable:
@@ -100,21 +141,22 @@ def _montar(cv: Curriculo) -> list[Flowable]:
     if c.github:
         story.append(Paragraph(_e(f"GitHub: {c.github}"), CONTATO))
 
-    story += [_secao("Resumo Profissional"), Paragraph(_e(cv.resumo), TEXTO)]
+    story += _secao("Resumo Profissional", [Paragraph(_e(cv.resumo), TEXTO)])
 
-    story.append(_secao("Experiência Profissional"))
+    experiencias = []
     for x in cv.experiencias:
         modo = f" ({x.modalidade})" if x.modalidade else ""
         titulo = (
             f"{x.empresa} – {x.cargo}{modo} | {data_pt(x.inicio)} – {data_pt(x.fim)}"
         )
         # uma experiência nunca é partida entre duas páginas
-        story.append(
+        experiencias.append(
             KeepTogether([Paragraph(_e(titulo), ITEM_TITULO), _bullets(x.bullets)])
         )
+    story += _secao("Experiência Profissional", experiencias)
 
     if cv.projetos:
-        story.append(_secao("Projetos"))
+        projetos = []
         for p in cv.projetos:
             titulo = p.nome + (f" ({p.ano})" if p.ano else "")
             if p.reconhecimento:
@@ -122,33 +164,33 @@ def _montar(cv: Curriculo) -> list[Flowable]:
             itens = [Paragraph(_e(titulo), ITEM_TITULO), _bullets(p.bullets)]
             if p.url:
                 itens.append(Paragraph(_e(p.url), LINHA_ITEM))
-            story.append(KeepTogether(itens))
+            projetos.append(KeepTogether(itens))
+        story += _secao("Projetos", projetos)
 
     if cv.formacao:
-        story.append(_secao("Formação Acadêmica"))
-        for f in cv.formacao:
-            story.append(
-                Paragraph(
-                    _e(f"{f.curso} – {f.instituicao} (Conclusão: {f.conclusao})"),
-                    LINHA_ITEM,
-                )
+        linhas = [
+            Paragraph(
+                _e(f"{f.curso} – {f.instituicao} (Conclusão: {f.conclusao})"),
+                LINHA_ITEM,
             )
+            for f in cv.formacao
+        ]
+        story += _secao("Formação Acadêmica", linhas)
 
     if cv.cursos:
-        story.append(_secao("Cursos"))
+        linhas = []
         for k in cv.cursos:
             ano = f" ({k.ano})" if k.ano else ""
-            story.append(Paragraph(_e(f"{k.nome} – {k.instituicao}{ano}"), LINHA_ITEM))
+            linhas.append(Paragraph(_e(f"{k.nome} – {k.instituicao}{ano}"), LINHA_ITEM))
+        story += _secao("Cursos", linhas)
 
     if cv.habilidades:
-        story += [
-            _secao("Habilidades"),
-            Paragraph(_e(" • ".join(h.texto for h in cv.habilidades)), TEXTO),
-        ]
+        texto = " • ".join(h.texto for h in cv.habilidades)
+        story += _secao("Habilidades", [Paragraph(_e(texto), TEXTO)])
 
     if cv.idiomas:
         linha = " | ".join(f"{i.idioma}: {i.nivel}" for i in cv.idiomas)
-        story += [_secao("Idiomas"), Paragraph(_e(linha), TEXTO)]
+        story += _secao("Idiomas", [Paragraph(_e(linha), TEXTO)])
 
     return story
 

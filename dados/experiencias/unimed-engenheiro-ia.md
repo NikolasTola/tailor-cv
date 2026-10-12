@@ -19,7 +19,7 @@ AI team building the company's AI platform, creating and deploying models and so
 - [ia-implantacao] Led the production deployment of predictive models for demand forecasting and absenteeism, coordinating architecture and integration with corporate systems.
   - tech: Modelos Preditivos, MLOps, AWS
 - [ia-api] Served machine learning models through APIs with AWS API Gateway, integrating them with corporate systems in production.
-  - tech: AWS API Gateway, AWS Lambda, AWS
+  - tech: AWS API Gateway, AWS Lambda, AWS, Modelos Preditivos
 - [ia-rag] Built a production RAG chatbot on AWS with hybrid search (BM25 + kNN) on OpenSearch, AWS Bedrock, session management on DynamoDB and observability with LangFuse, provisioned with AWS CDK.
   - tech: RAG, LLMs, AWS Bedrock, OpenSearch, DynamoDB, AWS Lambda, AWS ECS, LangFuse, AWS CDK
 - [ia-chainlit] Deployed the chatbot's Chainlit interface on ECS Fargate behind an internal HTTPS load balancer.
@@ -56,4 +56,5 @@ AI team building the company's AI platform, creating and deploying models and so
 - [ia-glue-ecs] Refactored a Bedrock log-processing Glue job into a containerized ECS solution with memory-managed parallel processing.
   - tech: AWS Glue, AWS ECS, Python
 - [ia-cicd] Planned CI/CD for Glue jobs with CodeCommit, CodePipeline and CodeBuild.
-  - tech: AWS CodeCommit, AWS CodePipeline, AWS CodeBuild, AWS Glue
+  - tech: CI/CD, AWS CodeCommit, AWS CodePipeline, AWS CodeBuild, AWS Glue
+  

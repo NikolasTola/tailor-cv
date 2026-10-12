@@ -117,3 +117,23 @@ def test_espera_pedida_longa_demais_desiste():
 def test_mensagem_de_cota_diaria_cita_o_modelo():
     mensagem = descrever_erro(COTA_DIARIA)
     assert "cota diária" in mensagem and "gemini-3.7-flash" in mensagem
+
+
+JSON_CORTADO = ErroDoProvedor(
+    "Error code: 400 - {'error': {'message': 'Failed to parse tool call arguments as "
+    "JSON', 'type': 'invalid_request_error', 'code': 'tool_use_failed'}}"
+)
+
+
+def test_json_cortado_e_repetido():
+    modelo, esperas = ModeloInstavel(1, JSON_CORTADO), []
+    assert (
+        _com_retentativa(modelo, esperas).with_structured_output(str).invoke([]) == "ok"
+    )
+    assert modelo.chamadas == 2
+
+
+def test_mensagem_de_json_cortado_nao_culpa_as_chaves():
+    mensagem = descrever_erro(JSON_CORTADO)
+    assert "resposta estruturada inválida" in mensagem
+    assert "chaves" not in mensagem

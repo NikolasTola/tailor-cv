@@ -30,7 +30,7 @@ def test_curriculo_fiel_passa():
 
 def test_itens_enviados_tem_texto_e_origem_em_ingles():
     _, llm = _validar()
-    humano = llm.chamadas[0][1].content
+    humano = "".join(c[1].content for c in llm.chamadas)  # todos os lotes
     assert (
         '"id": "exp:empresa-alfa:cargo"' in humano
         and '"origem": "AI Engineer"' in humano
@@ -93,3 +93,22 @@ def test_prompt_pede_avaliacao_de_todos_os_itens_e_do_escopo_dos_numeros():
     _, llm = _validar()
     sistema = llm.chamadas[0][0].content
     assert "TODOS os itens" in sistema and "30% dos gastos da empresa" in sistema
+
+
+def test_itens_sao_enviados_em_lotes():
+    from tailor_cv.validacao.fidelidade import TAMANHO_LOTE, _itens
+
+    total = len(_itens(CV, BASE))
+    _, llm = _validar()
+    esperado = -(-total // TAMANHO_LOTE)  # divisão arredondada para cima
+    assert len(llm.chamadas) == esperado
+    enviados = sum(c[1].content.count('"id":') for c in llm.chamadas)
+    assert enviados == total
+
+
+def test_problema_em_qualquer_lote_e_encontrado():
+    from tailor_cv.validacao.fidelidade import _itens
+
+    ultimo = list(_itens(CV, BASE))[-1]
+    resultado, _ = _validar(_problema(ultimo, "sem_lastro"))
+    assert not resultado.aprovado

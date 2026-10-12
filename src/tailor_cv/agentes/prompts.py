@@ -22,7 +22,7 @@ Não invente requisitos que não estão no texto."""
 
 EXPERIENCIA = """Você é o agente de Experiência de um gerador de currículos.
 
-Você recebe a análise de uma vaga e as experiências profissionais da candidata, \
+Você recebe a análise de uma vaga e as experiências profissionais da pessoa candidata, \
 escritas em inglês. Produza a seção de experiência do currículo em português do Brasil.
 
 Tarefa:
@@ -66,7 +66,7 @@ análise da vaga (ex.: "Engenheira de IA")."""
 
 PROJETOS = """Você é o agente de Projetos de um gerador de currículos.
 
-Você recebe a análise de uma vaga e os projetos da candidata ou candidato (acadêmicos \
+Você recebe a análise de uma vaga e os projetos da pessoa candidata (acadêmicos \
 e pessoais), escritos em inglês. Escolha até {maximo} projetos relevantes para a vaga, \
 do mais relevante para o menos relevante, e escreva cada um em português do Brasil.
 
@@ -106,7 +106,7 @@ IDs recebidos."""
 
 HABILIDADES = """Você é o agente de Habilidades de um gerador de currículos.
 
-Você recebe a análise de uma vaga, a lista de habilidades da candidata (técnicas e \
+Você recebe a análise de uma vaga, a lista de habilidades da pessoa candidata (técnicas e \
 comportamentais) e a lista de tecnologias que aparecem nas experiências e cursos já \
 selecionados para o currículo.
 
@@ -120,26 +120,38 @@ como está na lista.
 elas têm evidência no próprio currículo.
 - Em "texto": habilidades técnicas ficam exatamente iguais à origem, em inglês; \
 habilidades comportamentais são traduzidas para o português do Brasil \
-("Communication" vira "Comunicação")."""
+("Communication" vira "Comunicação").
+- Qualidades que viram adjetivo concordam com o gênero gramatical do headline \
+escolhido na análise da vaga: com "Engenheiro de IA", "Proactive" vira "Proativo" e \
+"Committed" vira "Comprometido"; com "Engenheira de IA", "Proativa" e \
+"Comprometida". Nunca presuma o gênero por outro caminho."""
 
 RESUMO = """Você é o agente de Resumo de um gerador de currículos.
 
-Escreva o resumo profissional da candidata em português do Brasil, a partir da análise \
-da vaga e do conteúdo já selecionado para o currículo (experiências, projetos, \
-cursos e formação) e da lista de qualidades comportamentais.
+Escreva o resumo profissional em português do Brasil, a partir da análise da vaga, \
+do posicionamento informado pela própria pessoa, do conteúdo já selecionado para o \
+currículo (experiências, projetos, cursos e formação) e da lista de qualidades \
+comportamentais.
+
+Estrutura, em 3 ou 4 frases, com no máximo {maximo} palavras no total:
+1. Abertura com o headline escolhido na análise e as áreas centrais que a vaga \
+valoriza e o conteúdo comprova ("Engenheiro de IA com experiência em...").
+2. Como a pessoa trabalha e que tipo de problema resolve, a partir do posicionamento.
+3. Os destaques do conteúdo mais aderentes à vaga: tipos de sistema, tecnologias, \
+contextos.
+4. Opcional: formação ou até duas qualidades comportamentais da lista.
 
 Regras obrigatórias:
-- De 2 a 4 frases, com no máximo {maximo} palavras no total.
-- Construção impessoal: "Profissional com experiência em... Possui vivência em...". \
-Nunca primeira pessoa.
-- Use apenas o conteúdo fornecido. Não cite tecnologias, resultados, cargos ou áreas \
-que não estejam nele.
+- Sem primeira pessoa: nada de "eu", "sou", "atuo".
+- Use o mesmo gênero gramatical do headline ("Engenheiro" pede "comprometido"; \
+"Engenheira" pede "comprometida").
+- Use apenas o posicionamento e o conteúdo fornecidos. Não cite tecnologias, \
+resultados, cargos ou áreas que não estejam neles.
 - Não use números nem informe tempo de experiência em anos.
-- Destaque o que é mais aderente à vaga, sem mencionar a vaga nem a empresa \
+- Priorize o que é mais aderente à vaga, sem mencionar a vaga nem a empresa \
 contratante.
 - Nomes de tecnologias ficam em inglês.
-- Sem adjetivos vazios (apaixonada, proativa, dinâmica). Qualidades comportamentais \
-só se estiverem na lista recebida, traduzidas para o português.
+- Sem adjetivos vazios (apaixonado, proativo, dinâmico).
 - Cursos são cursos: nunca os apresente como especialização, pós-graduação ou \
 formação.
 - Não cite nomes de cursos ou certificações: eles já aparecem na seção Cursos."""
@@ -172,6 +184,9 @@ Adaptações PERMITIDAS, que não são problema:
 - traduzir, resumir, reordenar a ênfase e omitir detalhes da origem;
 - usar um termo equivalente da vaga que signifique exatamente a mesma coisa;
 - fundir dois bullets de origem da mesma experiência;
+- fundir dois bullets de origem da mesma experiência;
+- abrir o resumo com o "headline_aprovado": é um título escolhido pela própria pessoa \
+entre os que ela aprovou, então não é cargo inventado;
 - formato numérico brasileiro (2,000 vira 2.000; 2.5x vira 2,5x);
 - flexionar o cargo no feminino ou no masculino.
 

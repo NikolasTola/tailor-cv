@@ -454,10 +454,10 @@ def validar_regras(
         cv.resumo,
         limite_palavras=limites.resumo_palavras_max,
         proibidas=proibidas,
-        numeros_origem=numeros_selecionados,
+        numeros_origem=numeros_selecionados | numeros_en(" ".join(base.posicionamento)),
         vocabulario=vocabulario,
         tags_permitidas=tags_selecionadas,
-        texto_origem=" ".join(textos_selecionados),
+        texto_origem=" ".join([*textos_selecionados, *base.posicionamento]),
     )
 
     # Idiomas: precisam ser exatamente a tradução por regra

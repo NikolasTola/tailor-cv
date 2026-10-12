@@ -16,6 +16,7 @@ from tailor_cv.schemas.agentes import SaidaFidelidade
 from tailor_cv.validacao.regras import Agente, Problema, ResultadoValidacao
 
 BLOQUEIAM = {"sem_lastro", "inflacao", "traducao_errada"}
+TAMANHO_LOTE = 8  # itens por chamada ao validador
 
 
 def _itens(cv: Curriculo, base: BaseDados) -> dict[str, dict]:
@@ -95,6 +96,8 @@ def _itens(cv: Curriculo, base: BaseDados) -> dict[str, dict]:
         "agente": "resumo",
         "texto_pt": cv.resumo,
         "origem": {
+            "headline_aprovado": cv.cabecalho.headline,
+            "posicionamento": base.posicionamento,
             "cargos": [x.cargo for x in cv.experiencias],
             "bullets": [b.texto for x in cv.experiencias for b in x.bullets],
             "projetos": [
@@ -117,16 +120,27 @@ def validar_fidelidade(
         {"id": id_, "texto_pt": i["texto_pt"], "origem": i["origem"]}
         for id_, i in itens.items()
     ]
-    mensagens = [
-        SystemMessage(prompts.FIDELIDADE),
-        HumanMessage(f"Itens:\n{json.dumps(para_llm, ensure_ascii=False, indent=1)}"),
-    ]
-    saida: SaidaFidelidade = llm.with_structured_output(SaidaFidelidade).invoke(
-        mensagens
-    )
+    # Em lotes: uma resposta com dezenas de avaliações às vezes sai cortada.
+    # Lotes menores deixam cada resposta curta e o julgamento mais atento.
+    avaliacoes = []
+    for inicio in range(0, len(para_llm), TAMANHO_LOTE):
+        lote = para_llm[inicio : inicio + TAMANHO_LOTE]
+        mensagens = [
+            SystemMessage(prompts.FIDELIDADE),
+            HumanMessage(f"Itens:\n{json.dumps(lote, ensure_ascii=False, indent=1)}"),
+        ]
+        saida: SaidaFidelidade = llm.with_structured_output(SaidaFidelidade).invoke(
+            mensagens
+        )
+        # só vale a avaliação de item deste lote (e uma por item)
+        ids_lote = {i["id"] for i in lote}
+        for avaliacao in saida.avaliacoes:
+            if avaliacao.item in ids_lote:
+                avaliacoes.append(avaliacao)
+                ids_lote.discard(avaliacao.item)
 
     resultado = ResultadoValidacao()
-    for a in saida.avaliacoes:
+    for a in avaliacoes:
         item = itens.get(a.item)
         if item is None or a.veredito == "fiel":
             continue  # ID inventado pelo validador ou item aprovado

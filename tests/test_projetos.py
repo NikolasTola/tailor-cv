@@ -91,7 +91,7 @@ def test_resumo_pode_citar_tecnologia_do_projeto(cv):
 def test_fidelidade_recebe_itens_do_projeto(cv):
     llm = LLMFalsa(SaidaFidelidade(avaliacoes=[]))
     validar_fidelidade(cv, BASE, llm)
-    humano = llm.chamadas[0][1].content
+    humano = "".join(c[1].content for c in llm.chamadas)  # todos os lotes
     for item in ("nome", "reconhecimento", "bullet:0"):
         assert f'"id": "projeto:assistente-rag:{item}"' in humano
     assert "Best final project of the course" in humano

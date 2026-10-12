@@ -15,6 +15,15 @@ from langchain.chat_models import init_chat_model
 
 # Trechos que aparecem nas mensagens de erro passageiro dos provedores:
 # sobrecarga (503), limite por minuto (429) e falha interna (500).
+# Resposta estruturada malformada (JSON cortado ou inválido): outra geração
+# quase sempre sai correta, então também vale tentar de novo.
+SINAIS_RESPOSTA_INVALIDA = (
+    "tool_use_failed",
+    "Failed to parse tool call",
+    "OutputParserException",
+    "Invalid json output",
+)
+
 SINAIS_PASSAGEIROS = (
     "503",
     "UNAVAILABLE",
@@ -46,9 +55,16 @@ def cota_diaria(exc: BaseException) -> bool:
     return "PerDay" in texto or "per day" in texto.lower()
 
 
+def resposta_invalida(exc: BaseException) -> bool:
+    texto = f"{type(exc).__name__} {exc}"
+    return any(s.lower() in texto.lower() for s in SINAIS_RESPOSTA_INVALIDA)
+
+
 def erro_passageiro(exc: BaseException) -> bool:
     if cota_diaria(exc):
         return False
+    if resposta_invalida(exc):
+        return True
     texto = f"{type(exc).__name__} {exc}"
     return any(sinal.lower() in texto.lower() for sinal in SINAIS_PASSAGEIROS)
 
@@ -123,6 +139,13 @@ def descrever_erro(exc: BaseException) -> str:
             "Ela é renovada uma vez por dia. Até lá, troque esse modelo no config.yaml "
             "por outro: cada modelo tem a sua própria cota.\n"
             f"Detalhes do provedor: {exc}"
+        )
+    if resposta_invalida(exc):
+        return (
+            "O modelo devolveu uma resposta estruturada inválida (JSON cortado ou "
+            "malformado), mesmo depois de novas tentativas.\n"
+            "Rode de novo; se persistir, troque o modelo desse agente no config.yaml.\n"
+            f"Detalhes do provedor: {str(exc)[:500]}"
         )
     if erro_passageiro(exc):
         return (

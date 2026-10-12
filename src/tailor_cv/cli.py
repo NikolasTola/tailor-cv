@@ -249,6 +249,7 @@ def checar(dados: DadosOpt = Path("dados")) -> None:
     )
     typer.echo(f"  Idiomas:      {len(base.idiomas)}")
     typer.echo(f"  Headlines:    {', '.join(base.perfil.headlines)}")
+    typer.echo(f"  Posicionamento: {len(base.posicionamento)} frase(s)")
 
 
 @app.command("validar")

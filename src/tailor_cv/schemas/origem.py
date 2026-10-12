@@ -115,6 +115,8 @@ class BaseDados(Base):
     cursos: list[CursoOrigem] = []
     habilidades: Habilidades
     idiomas: list[IdiomaOrigem] = []
+    # frases da própria pessoa sobre como trabalha; usadas só pelo Resumo
+    posicionamento: list[Texto] = []
 
     @model_validator(mode="after")
     def ids_unicos(self) -> "BaseDados":

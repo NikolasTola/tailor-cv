@@ -7,6 +7,9 @@
 - Scikit-learn
 - LLMs
 - LangChain
+- LangGraph
+- Sistemas Multiagentes
+- Pydantic
 - RAG
 - AWS Bedrock
 - Claude
@@ -18,6 +21,9 @@
 - Classificação de Texto
 - Modelos Preditivos
 - MLOps
+- CI/CD
+- GitHub
+- pytest
 - SageMaker
 - DataRobot
 - Data Mesh

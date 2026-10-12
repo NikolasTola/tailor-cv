@@ -116,8 +116,8 @@ class AvaliacaoFidelidade(BaseModel):
     item: str = Field(description="ID do item, copiado exatamente da lista recebida")
     comparacao: str = Field(
         description=(
-            "Compare o texto em português com a origem, em uma ou duas frases: os "
-            "fatos são os mesmos? Cada número mede a mesma coisa, com o mesmo escopo?"
+            "Compare o texto em português com a origem numa frase curta (até 25 "
+            "palavras): os fatos são os mesmos? Cada número mede a mesma coisa?"
         )
     )
     veredito: Veredito

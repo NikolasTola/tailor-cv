@@ -48,9 +48,12 @@ def test_json_gera_curriculo_relatorio_e_usa_cache(projeto):
     relatorio = (execucao / "relatorio.md").read_text(encoding="utf-8")
     assert "| 9 | incluída | empresa-alfa |" in relatorio
 
-    chamadas = len(llm.chamadas)
+    def geradores() -> int:  # chamadas dos agentes, sem os lotes do validador
+        return sum("validador de fidelidade" not in c[0].content for c in llm.chamadas)
+
+    chamadas = geradores()
     CliRunner().invoke(cli.app, ["json", *VAGA])
-    assert len(llm.chamadas) == chamadas + 7  # todos menos o Analisador (cache)
+    assert geradores() == chamadas + 6  # todos os agentes menos o Analisador (cache)
 
 
 def test_gerar_cria_json_e_pdf(projeto):
@@ -106,7 +109,8 @@ def test_validar_com_fidelidade(projeto):
 
     resultado = CliRunner().invoke(cli.app, [*args, "--fidelidade"])
     assert resultado.exit_code == 0 and "regras e na fidelidade" in resultado.output
-    assert len(llm.chamadas) == 1
+    assert llm.chamadas  # uma chamada por lote de itens
+    assert all("validador de fidelidade" in c[0].content for c in llm.chamadas)
 
     llm.respostas[SaidaFidelidade] = SaidaFidelidade(
         avaliacoes=[

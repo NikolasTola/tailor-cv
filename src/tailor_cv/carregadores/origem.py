@@ -190,6 +190,22 @@ def carregar_idiomas(arquivo: Path) -> list[IdiomaOrigem]:
     return idiomas
 
 
+def carregar_posicionamento(arquivo: Path) -> list[str]:
+    """Uma frase por linha, no formato '- frase'. Linhas com # são comentários."""
+    frases = []
+    for n, linha in enumerate(
+        arquivo.read_text(encoding="utf-8").splitlines(), start=1
+    ):
+        if not linha.strip() or linha.lstrip().startswith("#"):
+            continue
+        if not (m := ITEM.match(linha)):
+            raise ErroDeOrigem(
+                f"{arquivo} (linha {n}): esperado '- Frase', veio {linha.strip()!r}"
+            )
+        frases.append(m[1].strip())
+    return frases
+
+
 def carregar_base(pasta: Path) -> BaseDados:
     """Lê a base inteira. Qualquer problema vira ErroDeOrigem com o arquivo culpado."""
     obrigatorios = ["perfil.yaml", "habilidades.md", "experiencias"]
@@ -223,6 +239,9 @@ def carregar_base(pasta: Path) -> BaseDados:
         else [],
         "habilidades": carregar_habilidades(pasta / "habilidades.md"),
         "idiomas": carregar_idiomas(arq_idiomas) if arq_idiomas else [],
+        "posicionamento": carregar_posicionamento(pasta / "posicionamento.md")
+        if (pasta / "posicionamento.md").exists()
+        else [],
     }
     try:
         return BaseDados.model_validate(dados)
