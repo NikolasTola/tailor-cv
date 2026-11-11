@@ -24,6 +24,14 @@ AI team building the company's AI platform, creating and deploying models and so
   - tech: RAG, LLMs, AWS Bedrock, OpenSearch, DynamoDB, AWS Lambda, AWS ECS, LangFuse, AWS CDK
 - [ia-chainlit] Deployed the chatbot's Chainlit interface on ECS Fargate behind an internal HTTPS load balancer.
   - tech: Chainlit, AWS ECS
+- [ia-multiagente-rag] Built a multi-agent system that validates the documents of the centralized document base used for RAG, using LangGraph, LangChain and LangSmith.
+  - tech: Sistemas Multiagentes, LangGraph, LangChain, LangSmith, RAG, LLMs
+- [ia-monitoramento-alertas] Built an alerting and monitoring system for AI models in production that tracks and logs errors and sends alerts to Microsoft Teams through Amazon Q.
+  - tech: MLOps, Amazon Q, Microsoft Teams, AWS
+- [ia-alb-paginas] Built a page hosting system centralized on an Application Load Balancer, where pages that serve models can be hosted, using AWS ALB, ECS, EC2 and Lambda.
+  - tech: AWS ALB, AWS ECS, AWS EC2, AWS Lambda, AWS
+- [ia-docker-ecs] Deploy applications to production in Docker containers on AWS ECS.
+  - tech: Docker, AWS ECS, AWS
 - [ia-ecommerce] Designed a customer service chatbot for e-commerce using LangChain and Claude Sonnet.
   - tech: LangChain, Claude, LLMs
 - [ia-faq-rh] Developed an FAQ agent for the HR team that handles about 5,000 messages per month, removing bottlenecks in human support.
@@ -51,6 +59,8 @@ AI team building the company's AI platform, creating and deploying models and so
 - [ia-copilot] Built a Copilot Studio assistant that generates Azure DevOps cards, supporting 16 card types.
   - tech: Copilot Studio, Azure DevOps, LLMs
   - metric: 16 card types
+- [ia-cicd-copilot] Built a CI/CD pipeline connecting Azure DevOps to Copilot Studio agents, making agent development easier while keeping DevOps best practices.
+  - tech: CI/CD, Azure DevOps, Copilot Studio, DevOps
 - [ia-sagemaker] Worked on migrating models from DataRobot to SageMaker using AWS CDK.
   - tech: DataRobot, SageMaker, AWS CDK
 - [ia-glue-ecs] Refactored a Bedrock log-processing Glue job into a containerized ECS solution with memory-managed parallel processing.

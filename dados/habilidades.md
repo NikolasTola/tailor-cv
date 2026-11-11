@@ -14,6 +14,7 @@
 - AWS Bedrock
 - Claude
 - LangFuse
+- LangSmith
 - Chainlit
 - Copilot Studio
 - N8N
@@ -22,6 +23,7 @@
 - Modelos Preditivos
 - MLOps
 - CI/CD
+- Docker
 - GitHub
 - pytest
 - SageMaker
@@ -50,6 +52,8 @@
 - AWS Lambda
 - AWS ECS
 - AWS EC2
+- AWS ALB
+- Amazon Q
 - AWS API Gateway
 - AWS EventBridge
 - AWS SES

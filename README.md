@@ -45,6 +45,26 @@ A confiabilidade vem de camadas, e não de pedir à IA que "não invente":
 
 Cada execução gera um relatório com a nota e o motivo de cada experiência incluída ou omitida, o resultado das validações, as correções e os cortes.
 
+## Tecnologias
+
+| Área | Tecnologia | Para que serve no projeto |
+| --- | --- | --- |
+| **Linguagem** | [Python 3.12](https://www.python.org/) | Base de todo o sistema |
+| **Orquestração** | [LangGraph](https://langchain-ai.github.io/langgraph/) | Grafo multiagente com as quatro ondas, execução paralela e laço de correção |
+| **LLMs** | [LangChain](https://python.langchain.com/) | Interface única para os modelos (`init_chat_model`) e saídas estruturadas (`with_structured_output`) |
+| | [Google Gemini](https://ai.google.dev/) (`langchain-google-genai`) | Modelos dos agentes geradores |
+| | [Groq](https://groq.com/) (`langchain-groq`) | Modelo do validador de fidelidade, num provedor diferente dos geradores |
+| **Contratos de dados** | [Pydantic](https://docs.pydantic.dev/) | Schemas da base de origem, das saídas dos agentes e do currículo final |
+| **Leitura da base** | [python-frontmatter](https://github.com/eyeseast/python-frontmatter) e [PyYAML](https://pyyaml.org/) | Experiências, cursos e formação em Markdown com front matter; perfil, configuração e traduções em YAML |
+| **PDF** | [ReportLab](https://www.reportlab.com/) | Geração do currículo em PDF e medição do número de páginas para o corte |
+| **Terminal** | [Typer](https://typer.tiangolo.com/) | Comandos da CLI (`gerar`, `json`, `pdf`, `checar`, `validar`) |
+| | [Rich](https://rich.readthedocs.io/) | Painel ao vivo com o andamento de cada agente e mensagens formatadas |
+| **Configuração** | [python-dotenv](https://github.com/theskumar/python-dotenv) | Carrega as chaves de API do `.env` |
+| **Observabilidade** | [LangSmith](https://smith.langchain.com/) (opcional) | Tracing de cada chamada de LLM, com tempo, tokens e retentativas |
+| **Ferramentas** | [uv](https://docs.astral.sh/uv/) | Gerenciamento de dependências, ambiente virtual e build |
+| | [pytest](https://docs.pytest.org/) | Testes, com uma LLM falsa que roda sem rede |
+| | [Ruff](https://docs.astral.sh/ruff/) | Lint |
+
 ## Instalação
 
 **Requisitos:** Python 3.12 e [uv](https://docs.astral.sh/uv/).
